@@ -1,0 +1,12 @@
+.env
+secrets/
+.venv/
+__pycache__/
+
+# reels are local work; only the format guide is tracked
+reels/*
+!reels/README.md
+.DS_Store
+
+# subtitles are extracted locally (tools/subs.py extract)
+subs/
