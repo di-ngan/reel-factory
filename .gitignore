@@ -9,8 +9,8 @@ __pycache__/
 # workspace = your own work; only the guides and templates are tracked
 workspace/reels/*
 !workspace/reels/README.md
-workspace/subs/
-workspace/content_bank.md
+workspace/shows/*
+!workspace/shows/README.md
 workspace/preferences.json
 workspace/media/*
 !workspace/media/README.md

@@ -14,7 +14,7 @@ committed. Tools take the short name: `reel.py reel10`, `publish/youtube.py reel
 
 # post.json
 ```json
-{"title": "...", "caption": "...", "hashtags": ["DeathNote", "Anime"],
+{"title": "...", "caption": "...", "hashtags": ["YourShow", "Anime"],
  "youtube": {"privacy": "private", "publish_at": null}, "instagram": {}}
 ```
 `published.json` is written after posting and stops a reel being posted twice.

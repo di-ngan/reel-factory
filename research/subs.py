@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Subtitle index for fact-checking and finding moments.
 
-  subs.py extract                 # extract any missing workspace/subs/EPxx.srt from the episodes
+  subs.py extract                 # extract any missing subtitles from the active show's episodes
   subs.py search "one percent"    # every line matching (regex, case-insensitive), all episodes
   subs.py search "kira" --ep 10   # one episode
   subs.py show 10 2:20 3:10       # all lines of EP10 between 2:20 and 3:10
@@ -9,9 +9,8 @@
 import argparse, re, subprocess, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from core.common import WORK, CFG, episode
+from core.common import CFG, episodes, show
 
-SUBS = WORK / "subs"
 
 
 def parse(path):
@@ -40,20 +39,29 @@ def tsec(s):
 
 
 def main():
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(epilog="Subtitles live in workspace/shows/<show>/subs. --show picks a show other than the active one.")
+    ap.add_argument("--show")
     sp = ap.add_subparsers(dest="cmd", required=True)
     sp.add_parser("extract")
     s = sp.add_parser("search"); s.add_argument("pattern"); s.add_argument("--ep", type=int)
     sh = sp.add_parser("show"); sh.add_argument("ep", type=int); sh.add_argument("start"); sh.add_argument("end")
     a = ap.parse_args()
+    if a.show:
+        from core.shows import activate
+        CFG["show"] = activate(a.show)
+    if not show():
+        raise SystemExit("No show set up yet - run: reel.py show new \"<name>\" --episodes <folder>")
+    SUBS = show()["dir"] / "subs"
     SUBS.mkdir(exist_ok=True)
     if a.cmd == "extract":
-        for n in range(1, 38):
+        if CFG.get("subtitle_stream") is None:
+            raise SystemExit("These episodes have no subtitle track. Put .srt files in " + str(SUBS) + " as EP01.srt, EP02.srt ...")
+        for n, label, path in episodes():
             out = SUBS / f"EP{n:02d}.srt"
             if not out.exists():
-                subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", episode(n),
-                                "-map", f"0:s:{CFG['subtitle_stream']}", str(out)], check=True)
-                print("extracted", out.name)
+                r = subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", path,
+                                    "-map", f"0:s:{CFG['subtitle_stream']}", str(out)])
+                print(("extracted" if r.returncode == 0 else "no subtitles in"), out.name, f"({label})")
         return
     if a.cmd == "search":
         rx = re.compile(a.pattern, re.I)

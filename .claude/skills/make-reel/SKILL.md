@@ -8,6 +8,12 @@ description: Make a vertical reel end to end with any installed reel kit (commen
 Python is `.venv/bin/python`; run everything from the project root. Each reel lives in `workspace/reels/reelNN/`
 (next free number); every tool takes the short name (`reel10`). Keep the user's task list current.
 
+## 0. First run
+`reel.py doctor --quick` once per session. If it shows `XX`, or there is no show and the user wants commentary or a
+retelling, run the `setup` skill first. No content bank for the show (or for "Originals" when making stories) →
+the `content-bank` skill, then come back. Words: a **show** is the source (an anime, a series); a **series** is a
+recurring reel format inside its bank ("Mind games", "Power rankings").
+
 ## Project map
 | Folder | What it does |
 |---|---|
@@ -17,14 +23,14 @@ Python is `.venv/bin/python`; run everything from the project root. Each reel li
 | `research/` | `subs.py` (subtitle search, fact-checks), `sheet.py` (contact sheets), `style.py` (reference reels) |
 | `qa/qa.py` | checks a finished reel |
 | `auth/`, `publish/` | YouTube/Instagram sign-in and token checks; posting |
-| `workspace/` | the user's files: `reels/`, `media/`, `references/`, `subs/`, `content_bank.md`, `preferences.json` |
+| `workspace/` | the user's files: `shows/<show>/` (`show.json`, `content_bank.md`, `subs/`), `reels/`, `media/`, `references/`, `preferences.json` |
 
 ## Reel types
 Run `reel.py kits` once per session: it lists every installed kit, the types it makes, what it needs and its guide.
 Those types are the options - a kit someone adds to `reel_kits/` shows up there with no change to this skill.
-Today: `commentary` (commentary kit; needs episodes in `workspace/media`), `story` and `retelling` (cartoon kit;
-no footage). Start a reel's reel.json with `reel.py new reelNN <type>` (it records the kit), then follow that kit's
-`GUIDE.md` from the brief onwards.
+Today: `commentary` (commentary kit; needs a show with episodes), `story` and `retelling` (cartoon kit; no footage).
+Start a reel's reel.json with `reel.py new reelNN <type>` (it records the kit and the active show), then follow that
+kit's `GUIDE.md` from the brief onwards.
 
 ## Preferences (`workspace/preferences.json`, local; template `workspace/preferences.example.json`)
 - **Before the first reel of a new series** (or the first reel ever, when `reel_type` is null): ask which type,
@@ -32,6 +38,7 @@ no footage). Start a reel's reel.json with `reel.py new reelNN <type>` (it recor
   (and as `reel_type` if it was the first). One question, then continue - never ask again for that series.
 - Lookup order for a reel's type: what the user says now > `series[<series>]` > `reel_type`.
 - "Switch <series> to animated", "default to commentary", "turn SFX on", "use style X": update the file, confirm in one line.
+- `show`: the active show (`reel.py show use <show>` switches; "make a reel about <other show>" → switch, say so).
 - Other keys: `voice` (`elevenlabs` or `own` - the user records/makes the mp3), `sfx`, `style` (a reference name),
   `length_s` (target range).
 
@@ -56,7 +63,7 @@ no footage). Start a reel's reel.json with `reel.py new reelNN <type>` (it recor
 
 ## 1. Intake
 Find the starting point from the message (ask only if unclear):
-- **Nothing / "next reel"** → first `[ ]` idea in `workspace/content_bank.md` (create from `content_bank.example.md` there if missing).
+- **Nothing / "next reel"** → first `[ ]` idea in `workspace/shows/<show>/content_bank.md` (missing → `content-bank` skill).
   Bank empty or a new series → offer 10 ideas (below) and add the chosen one to the bank under its series.
 - **An idea, beats or clips pasted** → the starting brief. **A script** → keep the wording, fix only facts.
 - **A voiceover mp3** for a planned reel → save as `voice.mp3`, `voice/tts.py reelNN --timing-only`, then
@@ -75,12 +82,13 @@ for stories; for series ideas, find the moments with `research/subs.py` before o
   script (tags must not be spoken). `voice: own` → give the script with recording tips and wait for the mp3.
 
 ## 3. Publish (all types)
-- `post.json` from the brief: title (≤100 chars, hook + main hashtag), caption, 5-10 hashtags, `youtube.privacy`.
+- `post.json` from the brief: title (≤100 chars, hook + main hashtag), caption, 5-10 hashtags (the bank's list and
+  `show.json` `hashtags`), `youtube.privacy`.
 - Dry runs: `publish/youtube.py reelNN` and `publish/instagram.py reelNN`. Sign-in problems: `auth/youtube.py`,
   `auth/instagram.py`.
 - **STOP 2:** show title, caption and hashtags; on yes, rerun both with `--confirm`. YouTube stays private until the
   API project is audited - tell the user to switch it in Studio.
-- Mark the idea `[x]` in `workspace/content_bank.md` with the reel number and the links from `published.json`.
+- Mark the idea `[x]` in the show's `content_bank.md` with the reel number and the links from `published.json`.
 
 ## Reference reels (when the user adds one)
 Video in `workspace/references/<name>/video.mp4` (or `research/style.py --url <link> --name <name>` after the user confirms the

@@ -1,16 +1,11 @@
 {
   "workspace": "workspace",
-  "episodes_dir": "workspace/media/episodes",
-  "episode_glob": "*S01E{ep:02d}.mkv",
   "clips_dirs": ["workspace/media/clips"],
-  "audio_tracks": {"en": 0, "ja": 1},
+  "audio_tracks": {"orig": 0},
+  "under_track": "orig",
+  "clear_track": "orig",
   "subtitle_stream": 0,
-  "fonts": {
-    "text": "/System/Library/Fonts/Supplemental/Arial Black.ttf",
-    "label": "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
-    "emoji": "/System/Library/Fonts/Apple Color Emoji.ttc",
-    "emoji_size": 160
-  },
+  "fonts": {},
   "tts": {
     "model_id": "eleven_v3",
     "output_format": "mp3_44100_128",

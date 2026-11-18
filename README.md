@@ -17,8 +17,26 @@ can switch any time. The kits included:
 Want another style (slideshow, kinetic text, split-screen reactions...)? A kit is one folder with a `kit.json`, a
 guide and a renderer - see [Adding a kit](#adding-a-kit). The voice, QA and posting steps are shared by every kit.
 
-It was built for Death Note, but nothing is tied to one show: commentary works with any series you have as video files
-with subtitles, and the animated types need no footage at all.
+Nothing is tied to one show. Commentary works with any show you have as video files (subtitles help), the animated
+types need no footage at all, and with no show in mind Claude writes a bank of original story ideas for you.
+
+## Quick start with Claude Code
+
+Install [Claude Code](https://claude.com/claude-code) (terminal, desktop app or IDE extension), then ask it:
+
+> Clone https://github.com/di-ngan/reel-factory and set it up.
+
+Open the cloned `reel-factory` folder in Claude Code and say **"set up"** (the [`setup`](.claude/skills/setup/SKILL.md)
+skill). It checks ffmpeg, Python, Node and fonts on your computer, asks what you want to make, sets up your show
+from your episodes folder (or none), and then:
+
+1. **"Make a content bank for <show>"** - the [`content-bank`](.claude/skills/content-bank/SKILL.md) skill researches
+   the show into facts, rules, characters, key moments with clip times and 30 reel ideas. No show? It writes
+   original story ideas for animated reels.
+2. **"Make the next reel"** - the [`make-reel`](.claude/skills/make-reel/SKILL.md) skill takes it from there.
+
+Accounts (ElevenLabs, YouTube, Instagram) are only needed for the step that uses them - see
+[Account setup](#account-setup). You can make finished reels with your own recorded voice and no accounts at all.
 
 - **No pre-clipping.** The commentary engine cuts straight from the full episode files (pre-made clips work too).
 - **One JSON file per reel.** You describe the edit (cuts, text cards, graphics) in `reel.json`, and the engine renders it.
@@ -47,7 +65,7 @@ levels under the voice.
 - The episode fills a 1080×720 window over a blurred, darkened copy of itself, with a slow Ken Burns push on each shot.
 - Bold pop-in text cards sit above the clip (stroke, shadow, colour emoji). They can carry counters, a meter
   (e.g. "L's suspicion 1%"), FAKE stamps, arrows and a map-style HUD.
-- The show's own audio sits under the voice (Japanese track, −18 dB). A key line can play in the clear on the English
+- The show's own audio sits under the voice (original-language track, −18 dB). A key line can play in the clear on the English
   track: the engine opens a gap in the voiceover so the line has room.
 - The reel ends on a frozen frame with a slow push-in and a question card, to prompt comments.
 - Optional synthesized sound effects (whoosh on each card, hit on stamps, ting on meter drops), mixed 8 dB under the
@@ -71,7 +89,7 @@ levels under the voice.
 | ffmpeg / ffprobe | with libx264 and AAC (`brew install ffmpeg` / `apt install ffmpeg`) |
 | Python packages | `numpy`, `pillow`, `certifi` (everything else is the standard library) |
 | Fonts | a heavy sans font for the cards and a colour emoji font. The defaults are the macOS system fonts; on Linux/Windows set your own in `config.local.json` (see [Configuration](#configuration)) |
-| Episodes (commentary) | your own video files, ideally with an English audio track, a Japanese audio track and English subtitles |
+| Episodes (commentary) | your own video files; best with the original-language audio, an English track and English subtitles (one audio track works too) |
 | Node.js 22.6+ (animated) | for the cartoon renderer; `reel.py <reel> setup` installs Playwright's Chromium and fetches three.js once |
 | Accounts (optional) | ElevenLabs (voice), Google Cloud (YouTube), Meta developer app (Instagram) |
 
@@ -84,15 +102,21 @@ git clone https://github.com/di-ngan/reel-factory.git
 cd reel-factory
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-cp .env.example .env              # API keys go here (never committed)
+.venv/bin/python reel.py doctor    # checks software and fonts, creates .env and your workspace files
 ```
 
-Put your episodes in `workspace/media/episodes/` inside the project (gitignored - never commit video), or point `episodes_dir`
-at wherever they already are. Keep whole episodes: no clipping needed. Then build the subtitle index:
+Add the show you make reels about. Keep whole episodes (no clipping needed) wherever they are, or in
+`workspace/media/episodes/` (gitignored - never commit video):
 
 ```bash
-.venv/bin/python research/subs.py extract
+.venv/bin/python reel.py show new "My Show" --episodes "/path/to/episodes" --tags myshow,anime
+.venv/bin/python research/subs.py extract          # subtitle index, used for fact-checks and clip times
 ```
+
+`show new` numbers the episodes from their file names (`S01E07`, `1x07`, `Episode 7`, `- 07 [1080p]` ...) and finds
+the audio and subtitle tracks by language; it prints both so you can check them. Each show gets a folder in
+`workspace/shows/` for its settings, content bank and subtitles - start another show any time, and old reels keep
+working. No footage? `reel.py show new "Originals"` holds ideas for animated stories.
 
 ## Configuration
 
@@ -101,8 +125,6 @@ which is gitignored. It overrides `config.json` key by key:
 
 ```json
 {
-  "episodes_dir": "/path/to/Death Note",
-  "clips_dirs": ["/path/to/my/clips"],
   "fonts": {
     "text": "/usr/share/fonts/truetype/msttcorefonts/Arial_Black.ttf",
     "label": "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
@@ -114,12 +136,10 @@ which is gitignored. It overrides `config.json` key by key:
 
 | Key | What it does |
 |---|---|
-| `workspace` | folder for your own files (reels, media, references, subtitles, idea list); default `workspace` |
-| `episodes_dir`, `episode_glob` | where full episodes live and how episode *n* is named (`*S01E{ep:02d}.mkv`). Relative paths start at the project root |
-| `clips_dirs` | extra folders searched when a reel uses a clip file instead of `EPnn` |
-| `audio_tracks` | which audio stream is English and which is Japanese |
+| `workspace` | folder for your own files (shows, reels, media, references); default `workspace` |
+| `clips_dirs` | folders searched when a reel uses a clip file instead of `EPnn` (each show can add its own) |
 | `look` | default look for every commentary reel (see [`reel_kits/commentary/README.md`](reel_kits/commentary/README.md)): zoom, card position, background blur/dim, sound effects |
-| `fonts` | card font, contact-sheet label font, colour emoji font and the size it renders at (Apple Color Emoji: 160, Noto Color Emoji: 109) |
+| `fonts` | card font, contact-sheet label font, colour emoji font and its size. Found automatically on macOS, Windows and Linux (fontconfig); set them only to use other fonts |
 | `tts` | ElevenLabs model (`eleven_v3`), output format and voice settings |
 | `render` | frame size, fps, clip window position, show-audio level, loudness target |
 | `youtube` | category (`1` = Film & Animation) and default privacy |
@@ -130,14 +150,15 @@ which is gitignored. It overrides `config.json` key by key:
 ### With Claude Code (recommended)
 
 Open the project in Claude Code (the CLI, desktop app or IDE extension) and say *"make the next reel"*, paste an idea,
-a script or a voiceover, or say *"start a new series about ..."*. The [`make-reel`](.claude/skills/make-reel/SKILL.md)
+a script or a voiceover, or say *"start a new series about ..."*. (First time: *"set up"*, then *"make a content bank"* -
+see [Quick start](#quick-start-with-claude-code).) The [`make-reel`](.claude/skills/make-reel/SKILL.md)
 skill then:
 
 1. **Asks the reel type** the first time (and once per new series), and remembers it in `workspace/preferences.json`
    (template: [`preferences.example.json`](workspace/preferences.example.json)). Say *"switch this series to animated"* or
    *"turn sound effects on"* any time.
-2. **Takes the idea** from you, or the first unchecked item in `workspace/content_bank.md` (copy
-   [`content_bank.example.md`](workspace/content_bank.example.md) to start your own); it can also pitch 10 new ones.
+2. **Takes the idea** from you, or the first unchecked item in the show's content bank
+   (`workspace/shows/<show>/content_bank.md`); it can also pitch 10 new ones.
 3. **Writes a brief and the voiceover**, fact-checked against the subtitles (or the web for real stories).
    Approval stop 1: nothing costs credits or long renders before you approve.
 4. **Generates the voice** (or times your own mp3) and builds the reel with the type's kit:
@@ -219,6 +240,9 @@ The worked example is [`reel_kits/cartoon/example/soldier`](reel_kits/cartoon/ex
 
 | Command | Purpose |
 |---|---|
+| `reel.py doctor` | check software, fonts, workspace, shows and accounts; says what to fix |
+| `reel.py show new "<name>" [--episodes DIR] [--clips DIR ...] [--tags a,b]` | add a show (numbers the episodes, detects tracks) |
+| `reel.py show list` / `use <show>` / `scan [<show>]` | list shows, switch the active one, re-read the episode files |
 | `reel.py kits` | list installed kits, the reel types they make and what they need |
 | `reel.py new <reel> <type>` | new reel folder in `workspace/reels/` set up for that type's kit |
 | `reel.py <reel> [stage ...]` | render with the reel's kit (stages differ per kit) |
@@ -315,20 +339,19 @@ reel.py             one entry point: list kits, start a reel, render it with its
 reel_kits/          one folder per reel style - add a kit here (README.md: the kit contract)
   commentary/       commentary over show footage: engine.py, GUIDE.md, README.md (reel.json format), example/reel09
   cartoon/          animated story + retelling: build.py, three.js toon engine, cast, sound synths, example/soldier
-core/               shared code: config, .env, paths, reel and footage lookup, kit discovery
+core/               shared code: config, .env, paths, shows (episode numbering, tracks), fonts, kits, doctor
 voice/              tts.py - ElevenLabs voice and word timings
 research/           subs.py (subtitles), sheet.py (contact sheets), style.py (reference reels)
 qa/                 qa.py - checks a finished reel
 auth/               youtube.py (sign-in), instagram.py (token check)
 publish/            youtube.py, instagram.py - posting
-.claude/skills/     make-reel: the Claude Code workflow (it hands over to each kit's GUIDE.md)
+.claude/skills/     setup, content-bank and make-reel: the Claude Code workflow (make-reel hands over to each kit's GUIDE.md)
 workspace/          your own files (gitignored except the READMEs and templates):
+  shows/            one folder per show: show.json, content_bank.md, subs/ (README.md)
   reels/            one folder per reel (README.md: what's in one, post.json)
   media/            episodes and clips
   references/       reference reels and their style profiles (links.md: your list)
-  subs/             extracted subtitles
-  content_bank.md   your idea list (template content_bank.example.md)
-  preferences.json  reel type per series, voice, SFX, style (template preferences.example.json)
+  preferences.json  active show, reel type per series, voice, SFX, style (template preferences.example.json)
 config.json         defaults; config.local.json overrides (gitignored)
 .env, secrets/      keys and tokens (gitignored)
 ```

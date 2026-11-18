@@ -15,6 +15,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from core.common import CFG, WORK, source, duration, run, reel_dir
+from core.shows import for_reel
 
 RC = CFG["render"]
 FPS, W, H = RC["fps"], RC["width"], RC["height"]
@@ -24,7 +25,19 @@ FONT = CFG["fonts"]["text"]
 EMOJI = ImageFont.truetype(CFG["fonts"]["emoji"], CFG["fonts"]["emoji_size"])
 COL = {"W": (255, 255, 255), "R": (255, 52, 64), "Y": (255, 214, 64), "G": (70, 220, 120), "B": (90, 170, 255)}
 INK = (18, 12, 20)
-TRACK = {k: v for k, v in CFG["audio_tracks"].items()}
+
+
+def track(label=None):
+    """Audio stream for a track label from the show (e.g. "en", "ja"); no label = the show's track under the voice.
+    "en" falls back to the show's clear track and anything unknown to the track under the voice."""
+    t = CFG["audio_tracks"]
+    if label is None:
+        return t.get(CFG["under_track"], 0)
+    if label in t:
+        return t[label]
+    return t.get(CFG["clear_track"] if label == "en" else CFG["under_track"], 0)
+
+
 NEVER = 10 ** 9
 # Style knobs. Precedence: these defaults < config.json "look" < workspace/references/<style>/look.json < reel.json "look".
 LOOK = {"zoom": 0.06,          # Ken Burns push per shot (alternating in/out)
@@ -55,7 +68,7 @@ class Reel:
             t, k, s = c[0], c[1], c[2]
             ln = c[3] if len(c) > 3 else None
             db = c[4] if len(c) > 4 else 0
-            tr = TRACK[c[5]] if len(c) > 5 else TRACK["ja"]
+            tr = track(c[5] if len(c) > 5 else None)
             a, b = starts[i], starts[i + 1]
             if b <= a:
                 raise SystemExit(f"cut {i} at {t}s has no length - cut times must increase")
@@ -279,7 +292,7 @@ class Reel:
         sr = 48000
         ins, parts, lab, offs = [], [], [], []
         f = self.freeze
-        ftr = TRACK[f[4]] if len(f) > 4 else TRACK["ja"]
+        ftr = track(f[4] if len(f) > 4 else None)
         allsegs = list(self.segs) + [(self.FA, self.N, f[1], f[2], 1.0, 0, ftr)]
         for i, (a, b, k, st, sp, db, tr) in enumerate(allsegs):
             d = (b - a) / FPS
@@ -505,6 +518,7 @@ def main():
     if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
         raise SystemExit(__doc__)
     folder = reel_dir(sys.argv[1])
+    for_reel(folder)
     step = sys.argv[2] if len(sys.argv) > 2 else "all"
     r = Reel(folder)
     print(f"{r.j['title']}: {r.N} frames ({r.N / FPS:.2f}s), {len(r.segs)} cuts")

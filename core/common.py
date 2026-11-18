@@ -1,5 +1,5 @@
 """Shared helpers for every kit and tool: project paths, config, .env, reel folders, episode lookup."""
-import glob, json, os, subprocess
+import json, os, re, subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -13,9 +13,11 @@ def _load_config():
         for k, v in json.loads(local.read_text()).items():
             cfg[k] = {**cfg[k], **v} if isinstance(v, dict) and isinstance(cfg.get(k), dict) else v
     resolve = lambda p: str(p if os.path.isabs(p) else ROOT / p)      # relative paths are from the project root
-    cfg["episodes_dir"] = resolve(cfg["episodes_dir"])
+    cfg["episodes_dir"] = resolve(cfg.get("episodes_dir", "workspace/media/episodes"))
     cfg["clips_dirs"] = [resolve(d) for d in cfg.get("clips_dirs", [])]
     cfg["workspace"] = resolve(cfg.get("workspace", "workspace"))
+    from core.fonts import fill_fonts
+    cfg["fonts"] = fill_fonts(cfg.get("fonts") or {})           # missing fonts are found on this system
     return cfg
 
 
@@ -53,21 +55,38 @@ def need(name):
     return v
 
 
+def show():
+    """The show in use (reel.json "show" after shows.for_reel(), else the active show), or None."""
+    if "show" not in CFG:
+        from core import shows
+        CFG["show"] = shows.activate()
+    return CFG["show"]
+
+
+def episodes():
+    """[[n, label, path], ...] of the show's episodes in watch order."""
+    s = show()
+    if not s or not s.get("episodes_dir"):
+        raise SystemExit("No episodes set up. Add a show with: reel.py show new \"<name>\" --episodes <folder>")
+    return [[n, lab, os.path.join(s["episodes_dir"], f)] for n, lab, f in s.get("episodes", [])]
+
+
 def episode(ep):
-    """Episode number (10 or 'EP10') -> path of the full episode file."""
+    """Episode number (10 or 'EP10', watch order) -> path of the full episode file."""
     n = int(str(ep).upper().replace("EP", ""))
-    hits = glob.glob(os.path.join(CFG["episodes_dir"], CFG["episode_glob"].format(ep=n)))
-    if not hits:
-        raise SystemExit(f"Episode {n} not found in {CFG['episodes_dir']}")
-    return hits[0]
+    hit = next((p for i, _, p in episodes() if i == n), None)
+    if not hit or not os.path.exists(hit):
+        raise SystemExit(f"Episode {n} not found in show '{show()['name']}' - check the folder or run: reel.py show scan")
+    return hit
 
 
 def source(spec):
     """'EP10' -> episode file; anything else is a path (absolute, or a file name in the clips dirs)."""
-    if str(spec).upper().startswith("EP"):
+    if re.fullmatch(r"EP\d+", str(spec).upper()):
         return episode(spec)
     if os.path.isabs(spec):
         return spec
+    show()                                    # the show's clip folders come first
     for d in CFG["clips_dirs"]:
         p = os.path.join(d, spec)
         if os.path.exists(p):

@@ -5,24 +5,16 @@ gitignored, so footage is never committed or pushed. Only **commentary** reels n
 
 ```
 media/
-  episodes/   full episodes, one file per episode
+  episodes/   full episodes, one file per episode (or keep them anywhere and point the show at that folder)
   clips/      optional: clips you already cut (used by name in reel.json "sources")
 ```
 
 ## Episodes
 
 - Keep them **whole** - the engine cuts what it needs, so there is no need to pre-clip.
-- Name them so the episode number can be found. The default pattern (`config.json` → `episode_glob`) is
-  `*S01E{ep:02d}.mkv`, which matches e.g. `Death Note S01E07.mkv`. Change the pattern in `config.local.json`
-  if your files are named differently, e.g. `"episode_glob": "*Episode {ep:02d}*.mp4"`.
-- Best results: an English audio track, a Japanese audio track and English subtitles inside the file
-  (`audio_tracks` and `subtitle_stream` in the config say which stream is which). Then build the subtitle index once:
-  `.venv/bin/python research/subs.py extract`.
-
-## Already have the episodes somewhere else?
-
-No need to move or copy them. Point the config at their folder in `config.local.json`:
-
-```json
-{ "episodes_dir": "/path/to/your/episodes", "clips_dirs": ["/path/to/your/clips"] }
-```
+- Any common naming works: `Show S01E07.mkv`, `1x07`, `Episode 7 - Title.mp4`, `[Group] Show - 07 [1080p].mkv`.
+  `reel.py show new "<Show>" --episodes <folder>` numbers them and prints the result to check. With one season,
+  EP7 is episode 7; with several, EP numbers count across seasons in watch order (the list is in `show.json`).
+- Audio and subtitle tracks are found by their language tags: the original language goes under the voice, English
+  is used for lines played in the clear. One audio track is fine. No subtitles inside the files: put `.srt` files in
+  `workspace/shows/<show>/subs/` as `EP01.srt`, `EP02.srt` ...; otherwise run `research/subs.py extract` once.

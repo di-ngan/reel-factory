@@ -1,8 +1,9 @@
 {
+  "show": null,
   "reel_type": null,
   "series": {
-    "Mind games": {"type": "commentary"},
-    "Myth busting": {"type": "retelling", "style": null}
+    "Example series": {"type": "commentary"},
+    "Another series": {"type": "retelling", "style": null}
   },
   "voice": "elevenlabs",
   "sfx": false,

@@ -12,8 +12,11 @@ from core.common import CFG, WORK, source
 
 ap = argparse.ArgumentParser()
 ap.add_argument("src"); ap.add_argument("start", type=float); ap.add_argument("dur", type=float)
-ap.add_argument("--fps", type=float, default=2); ap.add_argument("--out")
+ap.add_argument("--fps", type=float, default=2); ap.add_argument("--out"); ap.add_argument("--show")
 a = ap.parse_args()
+if a.show:
+    from core.shows import activate
+    CFG["show"] = activate(a.show)
 out = Path(a.out or WORK / "reels" / "_sheets" / f"{Path(a.src).stem}_{int(a.start)}.jpg")
 out.parent.mkdir(parents=True, exist_ok=True)
 d = tempfile.mkdtemp()
