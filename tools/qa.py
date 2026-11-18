@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check a finished reel: length, loudness, peak, frozen/black spans in the clip window, stills sheet.
+"""Check a finished reel: length, loudness, peak, frozen/black spans (clip window, or full frame for cartoons), stills sheet.
 
   qa.py reels/reel09        # checks out/*.mp4, writes work/qa.jpg (1 still per second) and work/qa.json
 Exit code 1 if anything fails.
@@ -20,9 +20,12 @@ e = subprocess.run(["ffmpeg", "-hide_banner", "-i", mp4, "-af", "ebur128=peak=tr
 summ = e[e.rindex("Summary:"):]
 r["lufs"] = float(re.search(r"I:\s+(-?[\d.]+) LUFS", summ).group(1))
 r["peak_dbfs"] = float(re.search(r"Peak:\s+(-?[\d.]+) dBFS", summ).group(1))
-y = CFG["render"]["clip_y"]
+rj = folder / "reel.json"
+kind = json.loads(rj.read_text()).get("type", "commentary") if rj.exists() else "commentary"
+# commentary: check the clip window (text and background move anyway); cartoon: the whole frame
+area = f"crop=1080:720:0:{CFG['render']['clip_y']}," if kind == "commentary" else ""
 e = subprocess.run(["ffmpeg", "-hide_banner", "-i", mp4, "-vf",
-                    f"crop=1080:720:0:{y},freezedetect=n=0.001:d=0.4,blackdetect=d=0.1:pix_th=0.08",
+                    f"{area}freezedetect=n=0.001:d=0.4,blackdetect=d=0.1:pix_th=0.08",
                     "-f", "null", "-"], capture_output=True, text=True).stderr
 r["frozen_at"] = [float(x) for x in re.findall(r"freeze_start: ([\d.]+)", e)]
 r["black_at"] = [float(x) for x in re.findall(r"black_start:([\d.]+)", e)]

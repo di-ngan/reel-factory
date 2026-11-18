@@ -19,3 +19,10 @@ media/
 # reference reels are personal; only the guide is tracked
 references/*
 !references/README.md
+
+# cartoon kit downloads (fetched by reelkit.cartoon setup)
+kits/cartoon/node_modules/
+kits/cartoon/lib/
+kits/cartoon/package-lock.json
+reels/*/frames/
+preferences.json

@@ -1,9 +1,11 @@
 # reel-factory
 
-Vertical (1080x1920, 30 fps) anime commentary reels (built for Death Note) for YouTube Shorts and Instagram Reels.
+Vertical (1080x1920, 30 fps) reels for YouTube Shorts and Instagram Reels, built for Death Note. Three types:
+commentary (show footage, `reelkit/engine.py`), animated story and animated retelling (`reelkit/cartoon.py` + `kits/cartoon/`).
+The user's type per series lives in `preferences.json`.
 Run `/make-reel` (skill in .claude/skills/make-reel) - it holds the whole workflow and its two approval stops.
 
-- Python: `.venv/bin/python` (numpy, pillow, certifi). Everything else is stdlib + ffmpeg.
+- Python: `.venv/bin/python` (numpy, pillow, certifi). Everything else is stdlib + ffmpeg; animated reels also need Node 22.6+.
 - `reelkit/engine.py` renders `reels/<id>/reel.json` (format in reels/README.md, example in examples/reel09).
   `reelkit/common.py`: config (config.json + config.local.json), .env, episode lookup.
 - `tools/`: `subs.py` (subtitle search, fact-checking), `tts.py` (ElevenLabs + word timings), `sheet.py` (contact sheets),

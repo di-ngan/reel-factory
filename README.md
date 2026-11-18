@@ -1,12 +1,22 @@
 # reel-factory
 
-Turn an idea into a finished, posted vertical commentary reel: script, AI voiceover, cuts from the
-episodes, on-screen text, loudness-matched audio, QA, then upload to **YouTube Shorts** and **Instagram Reels**.
+Turn an idea into a finished, posted vertical reel: script, AI voiceover, picture, loudness-matched audio, QA,
+then upload to **YouTube Shorts** and **Instagram Reels**.
 
-It was built for Death Note commentary reels, but nothing in the engine is tied to one show: point it at any
-series you have as video files with subtitles.
+## Reel types
 
-- **No pre-clipping.** The engine cuts straight from the full episode files (pre-made clips work too).
+You pick a type when you start a reel or a series, and can switch any time:
+
+| Type | What you get | Needs |
+|---|---|---|
+| **Commentary** | narrated breakdown over show footage: text cards, meters, stamps, the show's audio under the voice | your episode files |
+| **Animated story** | an original cartoon short: 2D bean-head characters in an inked, painted 3D world, gliding cameras, synthesized music and SFX | nothing |
+| **Animated retelling** | the cartoon style applied to a series: a scene, rule or debate acted out by an original toon cast | nothing (subtitles help with facts) |
+
+It was built for Death Note, but nothing is tied to one show: commentary works with any series you have as video files
+with subtitles, and the animated types need no footage at all.
+
+- **No pre-clipping.** The commentary engine cuts straight from the full episode files (pre-made clips work too).
 - **One JSON file per reel.** You describe the edit (cuts, text cards, graphics) in `reel.json`, and the engine renders it.
 - **Cuts land on the words.** ElevenLabs returns a timestamp for every word, so each shot changes just as its line starts.
 - **Driven by Claude Code, no Claude API key needed.** A [Claude Code](https://claude.com/claude-code) skill runs the whole
@@ -24,6 +34,11 @@ idea ─► script + fact-check ─► voiceover (ElevenLabs) ─► word timing
 
 ## Output
 
+All types: 1080×1920 at 30 fps, H.264, AAC, **−14 LUFS** with a true-peak limiter, music and effects held at fixed
+levels under the voice.
+
+**Commentary**
+
 - 1080×1920 at 30 fps, H.264 (CRF 16), AAC, mixed to **−14 LUFS** with a true-peak limiter.
 - The episode fills a 1080×720 window over a blurred, darkened copy of itself, with a slow Ken Burns push on each shot.
 - Bold pop-in text cards sit above the clip (stroke, shadow, colour emoji). They can carry counters, a meter
@@ -35,6 +50,15 @@ idea ─► script + fact-check ─► voiceover (ElevenLabs) ─► word timing
   voice with peaks capped below it.
 - Borrow the pacing and look of a reel you like: see [Reference reels](#reference-reels).
 
+**Animated (story and retelling)**
+
+- 2D cartoon characters drawn on canvas cards (outfits, poses, expressions, blinks, idle motion) in a 3D world built from
+  primitives with painted textures, ink outlines, depth of field and graded light (day, golden, night-blue).
+- Cameras glide on eased keyframes and curved paths; something always moves; impacts get a kick, the twist a sting.
+- Music bed (march, calm piano, drone) and SFX (whoosh, thunk, rumble, crash, ting, sting, creak, snap, splash...) are
+  synthesized per reel, music and SFX at 50 % of the voice, effect peaks capped below it.
+- Rendered by three.js in headless Chromium - no GPU needed (about 0.5-1.5 s per frame).
+
 ## Requirements
 
 | | |
@@ -43,7 +67,8 @@ idea ─► script + fact-check ─► voiceover (ElevenLabs) ─► word timing
 | ffmpeg / ffprobe | with libx264 and AAC (`brew install ffmpeg` / `apt install ffmpeg`) |
 | Python packages | `numpy`, `pillow`, `certifi` (everything else is the standard library) |
 | Fonts | a heavy sans font for the cards and a colour emoji font. The defaults are the macOS system fonts; on Linux/Windows set your own in `config.local.json` (see [Configuration](#configuration)) |
-| Episodes | your own video files, ideally with an English audio track, a Japanese audio track and English subtitles |
+| Episodes (commentary) | your own video files, ideally with an English audio track, a Japanese audio track and English subtitles |
+| Node.js 22.6+ (animated) | for the cartoon renderer; `reelkit.cartoon setup` installs Playwright's Chromium and fetches three.js once |
 | Accounts (optional) | ElevenLabs (voice), Google Cloud (YouTube), Meta developer app (Instagram) |
 
 No footage, subtitles or voices are included in this repository.
@@ -99,21 +124,27 @@ which is gitignored. It overrides `config.json` key by key:
 
 ### With Claude Code (recommended)
 
-Open the project in Claude Code (the CLI, desktop app or IDE extension) and say *"make the next reel"*, or paste an
-idea with your beats and clip notes. The [`make-reel`](.claude/skills/make-reel/SKILL.md) skill then:
+Open the project in Claude Code (the CLI, desktop app or IDE extension) and say *"make the next reel"*, paste an idea,
+a script or a voiceover, or say *"start a new series about ..."*. The [`make-reel`](.claude/skills/make-reel/SKILL.md)
+skill then:
 
-1. **Takes the idea** from you, or the first unchecked item in `content_bank.md`. Copy
-   [`content_bank.example.md`](content_bank.example.md) to `content_bank.md` to keep your own list.
-2. **Fact-checks** every claim and quote against the subtitles and writes `script.txt` and `vo.txt`.
-   Approval stop 1: you approve the script before any credits are spent.
-3. **Generates the voice** with your ElevenLabs voice and saves the word timings.
-4. **Picks shots** from contact sheets of the scenes, one per phrase.
-5. **Writes `reel.json`**, renders it and runs QA. It looks at the stills and fixes dark shots, cropped faces and
-   text covering a face.
+1. **Asks the reel type** the first time (and once per new series), and remembers it in `preferences.json`
+   (template: [`preferences.example.json`](preferences.example.json)). Say *"switch this series to animated"* or
+   *"turn sound effects on"* any time.
+2. **Takes the idea** from you, or the first unchecked item in `content_bank.md` (copy
+   [`content_bank.example.md`](content_bank.example.md) to start your own); it can also pitch 10 new ones.
+3. **Writes a brief and the voiceover**, fact-checked against the subtitles (or the web for real stories).
+   Approval stop 1: nothing costs credits or long renders before you approve.
+4. **Generates the voice** (or times your own mp3) and builds the reel with the type's engine:
+   - *commentary*: shots from the episodes, `reel.json`, a ~1 minute render;
+   - *animated*: shot plan, world, cast, cameras and sound cues, a stills sheet for you to check, then the full render.
+5. **Runs QA** and fixes what it finds.
 6. **Writes the title, caption and hashtags**. Approval stop 2: you approve them before anything is posted, then it
    uploads to YouTube and publishes to Instagram.
 
-### By hand
+Type guides: [commentary](.claude/skills/make-reel/types/commentary.md), [animated](.claude/skills/make-reel/types/cartoon.md).
+
+### By hand (commentary)
 
 ```bash
 mkdir -p reels/reel10 && $EDITOR reels/reel10/vo.txt     # the spoken script (v3 tags like [serious] allowed)
@@ -157,6 +188,22 @@ The full format (gaps for show lines, slow motion, counters, meters, stamps, arr
 [`reels/README.md`](reels/README.md). A complete real reel is in [`examples/reel09`](examples/reel09).
 
 Re-render only what changed: `python -m reelkit.engine reels/reel10 [text|video|audio|finish]`.
+
+### By hand (animated)
+
+```bash
+mkdir -p reels/reel11 && echo '{"type": "cartoon", "title": "My-Short", "voice": "voice.mp3"}' > reels/reel11/reel.json
+.venv/bin/python tools/tts.py reels/reel11                # voice + word timings from vo.txt
+.venv/bin/python -m reelkit.cartoon reels/reel11 setup    # engine + example story into reels/reel11/web
+$EDITOR reels/reel11/web/story.js reels/reel11/audio.py   # shot plan, world, cast, cameras; music + SFX cues
+.venv/bin/python -m reelkit.cartoon reels/reel11 stills 0,60,120,240   # look check -> work/stills.jpg
+.venv/bin/python -m reelkit.cartoon reels/reel11 render   # all frames (resumes if interrupted)
+.venv/bin/python -m reelkit.cartoon reels/reel11 audio    # stems -> level-locked mix
+.venv/bin/python -m reelkit.cartoon reels/reel11 finish   # -> out/My-Short.mp4
+.venv/bin/python tools/qa.py reels/reel11
+```
+
+The worked example is [`kits/cartoon/example/soldier`](kits/cartoon/example/soldier) ("The Soldier Who Never Left").
 
 ## Tools
 
@@ -243,15 +290,17 @@ time you publish.
 ## Project layout
 
 ```
-reelkit/            engine.py (renderer), common.py (config, .env, episode lookup)
+reelkit/            engine.py (commentary renderer), cartoon.py (animated stages), common.py (config, .env, episodes)
+kits/cartoon/       3D toon engine (three.js), cast library, sound synths, render.mjs, the Soldier example
 tools/              subs, tts, sheet, qa, publish_youtube, publish_instagram, ig_token
-.claude/skills/     make-reel: the Claude Code workflow with its two approval stops
+.claude/skills/     make-reel: the Claude Code workflow (router + one guide per reel type)
 examples/reel09/    a complete reel.json, post.json and script
 reels/              your reels, one folder each (gitignored except README.md, the format reference)
 references/         reference reels and their style profiles (gitignored except README.md)
 media/              your episodes and clips (gitignored)
 subs/               extracted subtitles (gitignored)
 config.json         defaults; config.local.json overrides (gitignored)
+preferences.json    your reel type per series, voice, SFX, style (gitignored; template preferences.example.json)
 ```
 
 ## Troubleshooting
@@ -265,11 +314,17 @@ config.json         defaults; config.local.json overrides (gitignored)
 | YouTube video is private | expected until the API project is audited |
 | Instagram `ProcessingFailedError` | Instagram's upload assembly is flaky; the publisher retries with a fresh container automatically |
 | Phrases split in the middle of words | breathy voices dip below the silence threshold; with word timings from `tts.py` this is handled |
+| Cartoon render: `Executable doesn't exist` | run `.venv/bin/python -m reelkit.cartoon reels/<id> setup` (installs Playwright's Chromium) |
 | Emoji missing or huge on Linux | set `fonts.emoji` to Noto Color Emoji and `emoji_size` to 109 |
 
 ## License
 
 [MIT](LICENSE). The license covers the code only, not any media you use it with.
+
+Third party: the cartoon cast library `kits/cartoon/vendor/toon.ts` is adapted from
+[mromidev/claude-animated-shorts](https://github.com/mromidev/claude-animated-shorts) (MIT, see
+[its license](kits/cartoon/vendor/LICENSE-claude-animated-shorts)); [three.js](https://threejs.org) (MIT) and
+Playwright (Apache-2.0) are downloaded at setup, not bundled.
 
 ## Legal
 

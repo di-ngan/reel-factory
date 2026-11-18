@@ -1,98 +1,80 @@
 ---
 name: make-reel
-description: Make a vertical anime commentary reel (built for Death Note) end to end - idea from content_bank.md or the user, fact-checked brief and voiceover, ElevenLabs voice, cuts straight from the episode files, QA, then (after approval) YouTube Shorts and Instagram Reels. Use for "make reel N", "next reel", "/make-reel", a pasted reel idea, or a voiceover mp3 for a planned reel.
+description: Make a vertical reel end to end in one of three types - commentary over show footage, an original animated story, or an animated retelling inspired by a series - then QA and (after approval) post to YouTube Shorts and Instagram Reels. Use for "make reel N", "next reel", "/make-reel", "start a series", a pasted reel idea or script, a voiceover mp3 for a planned reel, or "switch this series to ...".
 ---
 
 # Make a reel
 
-Python is `.venv/bin/python`; run tools from the project root. Work in `reels/reelNN/` (next free number).
+Python is `.venv/bin/python`; run tools from the project root. Each reel lives in `reels/reelNN/` (next free number).
 Keep the user's task list current.
 
-## Rules
+## Reel types
+| Type | What it is | Needs | Guide |
+|---|---|---|---|
+| `commentary` | narrated breakdown over show footage, text cards, graphics | episodes in `media/` | `types/commentary.md` |
+| `story` | original animated short: 3D toon world, cartoon cast, music + SFX | nothing | `types/cartoon.md` |
+| `retelling` | animated short inspired by a series: its scenes, rules or debates acted by an original toon cast | subtitles help for facts; no footage | `types/cartoon.md` |
+
+`story` and `retelling` share the cartoon engine (`reel.json` `"type": "cartoon"`, plus `"inspired_by"` for a retelling).
+
+## Preferences (`preferences.json`, local; template `preferences.example.json`)
+- **Before the first reel of a new series** (or the first reel ever, when `reel_type` is null): ask which type,
+  with the table above as the options and the current default first. Save it under `series["<name>"]`
+  (and as `reel_type` if it was the first). One question, then continue - never ask again for that series.
+- Lookup order for a reel's type: what the user says now > `series[<series>]` > `reel_type`.
+- "Switch <series> to animated", "default to commentary", "turn SFX on", "use style X": update the file, confirm in one line.
+- Other keys: `voice` (`elevenlabs` or `own` - the user records/makes the mp3), `sfx`, `style` (a reference name),
+  `length_s` (target range).
+
+## Rules (all types)
 - **Two approval stops, never skipped** (on an unattended run, stop there and report):
-  1. the brief + tagged voiceover, before any ElevenLabs credits are spent;
+  1. the brief + tagged voiceover, before ElevenLabs credits or long renders;
   2. title, caption and hashtags, before anything is published (Instagram is public immediately).
-- Facts and quotes come from the subtitles (`tools/subs.py`), never from memory or the bank alone.
-  Rules the anime never shows go in on-screen text, not as a show clip. Say what you corrected.
-- Never edit or re-time the voice. The picture follows it: cuts land 2 frames before their word (the engine does this).
-- Original commentary only. A reference reel lends its *editing style*, never its script, footage choices or wording.
-- Spoiler tier from the bank: mid and endgame reels say "spoiler" in the first card.
+- Facts are checked: show facts against the subtitles (`tools/subs.py`); real-world stories with a web search,
+  and anything disputed is framed as legend. Say what you corrected.
+- Never edit or re-time the voice; the picture follows it.
+- Original work only. A reference reel lends its *editing style*, never its script or shots. No real living people
+  as characters, no brand mascots or logos. In a `retelling`, characters are new toon designs that nod to a role
+  (a detective, a student with a notebook) - never copies of the official character designs, logos or footage.
+- Spoiler tier from the bank: mid and endgame reels say "spoiler" in the first card or first line.
 
 ## Save credits (Claude usage and ElevenLabs)
-- **Text before images.** Find moments with `subs.py search/show` (cheap). Make a contact sheet only for the few
-  seconds you still need to see, at 2 fps, around the subtitle time. Never sheet a whole episode.
-- **Read each image once**; note what you learned in `work/notes.md` instead of reopening it.
-- Episodes stay whole: the engine cuts from them directly, so the user never needs to pre-clip.
-  If the user already has clips (`clips_dirs`), use them as sources - they're just shorter episodes.
-- **One voice generation per reel.** The script is approved first. For a small fix to a self-made mp3,
-  re-time with `--timing-only` instead of regenerating.
-- Re-render only the stage that changed (`... engine reels/reelNN video|audio|finish`).
-- A style is analysed once (`references/<name>/style.md`); later reels read that text, not the video.
+- Text before images: subtitles, scripts and numbers are cheap; images are not. Look at each sheet once, keep notes
+  in `work/notes.md`, and make sheets only of what is still in doubt (2 fps, a few seconds).
+- One voice generation per reel, after approval. Self-made mp3: `tools/tts.py reels/reelNN --timing-only`.
+- Re-render only what changed. Cartoon: stills sheet first, full render only after it looks right (it takes minutes).
+- A reference style is analysed once (`references/<name>/style.md`); later reels read the text.
 
 ## 1. Intake
-Work out where the user is starting, without asking if it's obvious from the message:
-- **Nothing / "next reel"** → first `[ ]` idea in `content_bank.md` (make it from `content_bank.example.md` if
-  missing). Bank empty → offer 10 new ideas (format below), append the chosen one to the bank.
-- **An idea, beats or clips pasted** → use them as the starting brief.
-- **A script** → skip to the brief, keep their wording except for factual fixes.
-- **A voiceover mp3** for a planned reel → save it as `voice.mp3`, run `tools/tts.py reels/reelNN --timing-only`
-  (aligns `vo.txt` to the audio, ~0.1-0.3 s), go to step 4.
-Also check `references/` for a style the user named or `links.md` entries without a `style.md`.
+Find the starting point from the message (ask only if unclear):
+- **Nothing / "next reel"** → first `[ ]` idea in `content_bank.md` (create from `content_bank.example.md` if missing).
+  Bank empty or a new series → offer 10 ideas (below) and add the chosen one to the bank under its series.
+- **An idea, beats or clips pasted** → the starting brief. **A script** → keep the wording, fix only facts.
+- **A voiceover mp3** for a planned reel → save as `voice.mp3`, `tools/tts.py reels/reelNN --timing-only`, then
+  continue the type guide from its voice step.
+Resolve the type (Preferences), then follow the type guide. Check `references/` for a style the user named.
 
-**New ideas** (when needed): exactly 10, each with a title (5-8 words, curiosity), the hook line (a surprising fact
-stated flatly, no setup), three beats, the closing question, spoiler tier, and 2-4 clips found with `subs.py`.
-Prefer ideas with a visible cause and effect on screen and a twist in the last line.
+**10 ideas** (commentary, retelling or story): each with a title (5-8 words, curiosity), the hook line (a surprising
+fact stated flatly - no setup), three beats, the twist or closing question, spoiler tier or "true / legend", and the
+2-3 big visual moments. Good ideas have a visible cause and effect and a payoff in the last line. Mix eras and themes
+for stories; for series ideas, find the moments with `subs.py` before offering them.
 
-## 2. Brief and voiceover
-- Locate each clip: bank times are approximate (`≈` can be a minute off). Confirm with `subs.py`, then a small sheet.
-- Write `brief.md` (model: `examples/reel09/brief.md`):
-  - **Clips** A, B, C... - `EPnn m:ss-m:ss`, what happens, the key line.
-  - **Beats** with target times: `[0:00-0:02] Hook. Clip B` → *On screen* (≤6 words, caps, key word red/yellow,
-    optional emoji) → *Voiceover*. Then 3 beats, then the close: question card with 👇 and a tease of the next part.
-  - **Editing**: show lines to play in the clear, graphics (meter, FAKE stamp, arrow, HUD, counter), split screens.
-  - **Caption** + 5-10 hashtags from the bank list. **Fact check**: claim → subtitle line and time.
-- Script craft: hook is sentence one (no "In this video"). Spoken, plain English, 8-15 word sentences, contractions.
-  Escalate each beat; the twist or question is the last line. Don't narrate what the viewer already sees.
-  Write numbers as words for TTS. ~2.4 words/s with tags → 45-60 s ≈ 110-145 words.
-- If a show line plays in the clear, end the sentence before it (a gap opens there in step 4).
+## 2. Voice (all types)
 - `vo.txt` = spoken words only, ElevenLabs v3 tags (`[serious]`, `[curious]`, `[dramatic pause]`), pauses as "...".
-  No `<break>` tags (not supported in v3).
-- **STOP 1:** show the brief and the tagged voiceover; wait for approval.
+  No `<break>` tags. Numbers as words.
+- After STOP 1: `tools/tts.py reels/reelNN` → `voice.mp3`, `words.json`, `timing.txt`. Check the phrases match the
+  script (tags must not be spoken). `voice: own` → give the script with recording tips and wait for the mp3.
 
-## 3. Voice
-- `tools/tts.py reels/reelNN` → `voice.mp3`, `words.json`, `timing.txt` (phrase and word start times).
-- Check the phrase list matches the script (tags must not be spoken). User's own mp3: `--timing-only` (step 1).
-
-## 4. Shots and reel.json
-- One shot per phrase. For each, get the exact source second from `subs.py show` + a 2 fps sheet of that moment
-  (`tools/sheet.py EP10 240 8 --out reels/reelNN/work/s3.jpg`). Note picks in `work/notes.md`.
-- Avoid: fades (start 0.5 s in), faces at the frame edge (the clip is a centre crop, 720 of 848 px wide),
-  reusing a shot, text over a face at a meme moment.
-- Write `reel.json` (format: `reels/README.md`, full example: `examples/reel09/reel.json`):
-  cut times = phrase starts from `timing.txt`; a show line in the clear = a `gaps` entry in the pause before it +
-  a cut on track `"en"` at +10-12 dB; end with `freeze` and the question card.
-- Style: `"style": "<name>"` applies `references/<name>/look.json`; apply its `style.md` too (pace, card wording).
-  Without a reference, the house style is the default. Sound effects: `"look": {"sfx": true}` (whoosh on cards,
-  hit on stamps, ting on meter drops, −8 dB under the voice) and `"sfx": [[t, "whoosh"|"hit"|"ting"]]` for extras.
-
-## 5. Look check, render, QA
-- Render the text layer first (`... engine reels/reelNN text`) and check 3-4 frames
-  (`frames_txt/tNNNN.png`) at the busiest moments: card size, wrap, meter/HUD overlap.
-- Full render (`.venv/bin/python -m reelkit.engine reels/reelNN`, about 1 min), then `tools/qa.py reels/reelNN`.
-- Read `work/qa.jpg` once: dark or blank shots, faces cropped, cards on faces, wrong shot for the line. Fix and
-  re-render only the stage needed.
-- Send the mp4 (SendUserFile) with a short shot table.
-
-## 6. Publish
-- `post.json` from the brief: title (≤100 chars, hook + #DeathNote), caption, hashtags, `youtube.privacy`.
+## 3. Publish (all types)
+- `post.json` from the brief: title (≤100 chars, hook + main hashtag), caption, 5-10 hashtags, `youtube.privacy`.
 - Dry runs: `tools/publish_youtube.py reels/reelNN` and `tools/publish_instagram.py reels/reelNN`.
-- **STOP 2:** show title, caption and hashtags; on yes, rerun both with `--confirm`.
-  YouTube uploads stay private until the API project is audited - tell the user to switch it in Studio.
+- **STOP 2:** show title, caption and hashtags; on yes, rerun both with `--confirm`. YouTube stays private until the
+  API project is audited - tell the user to switch it in Studio.
 - Mark the idea `[x]` in `content_bank.md` with the reel number and the links from `published.json`.
 
 ## Reference reels (when the user adds one)
-- Video in `references/<name>/video.mp4` (or `tools/style.py --url <link> --name <name>` after the user confirms
-  the download). Run `tools/style.py references/<name>/video.mp4`; read `analysis.json` and `sheet.jpg` once.
-- Write `style.md`: hook pattern and first-3-s cut count; average/median shot length and how pace changes by third;
-  text size, position, colours, emoji, word count per card; zoom/motion; SFX and music; ending. Map what the engine
-  can do into `look.json`; list the rest as manual notes (e.g. "cut on every rally hit").
+Video in `references/<name>/video.mp4` (or `tools/style.py --url <link> --name <name>` after the user confirms the
+download). Run `tools/style.py references/<name>/video.mp4`; read `analysis.json` and `sheet.jpg` once. Write
+`style.md` (hook and first-3-s cuts, shot lengths and pace by third, text size/position/colours/emoji/words per card,
+motion, SFX/music, ending) and `look.json` (engine settings for commentary: `zoom`, `freeze_zoom`, `card_y`, `bg_blur`,
+`bg_dim`, `sfx`, `sfx_db`). For cartoons, apply `style.md` to the shot plan (shot length, camera energy, SFX density).
