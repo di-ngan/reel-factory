@@ -14,11 +14,19 @@ subs/
 # your own settings and idea list
 config.local.json
 content_bank.md
-media/
+media/*
+!media/README.md
+!media/episodes/
+media/episodes/*
+!media/episodes/.gitkeep
+!media/clips/
+media/clips/*
+!media/clips/.gitkeep
 
 # reference reels are personal; only the guide is tracked
 references/*
 !references/README.md
+!references/links.md
 
 # cartoon kit downloads (fetched by reelkit.cartoon setup)
 kits/cartoon/node_modules/
