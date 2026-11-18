@@ -15,3 +15,7 @@ subs/
 config.local.json
 content_bank.md
 media/
+
+# reference reels are personal; only the guide is tracked
+references/*
+!references/README.md

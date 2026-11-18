@@ -6,6 +6,7 @@ episodes, on-screen text, loudness-matched audio, QA, then upload to **YouTube S
 It was built for Death Note commentary reels, but nothing in the engine is tied to one show: point it at any
 series you have as video files with subtitles.
 
+- **No pre-clipping.** The engine cuts straight from the full episode files (pre-made clips work too).
 - **One JSON file per reel.** You describe the edit (cuts, text cards, graphics) in `reel.json`, and the engine renders it.
 - **Cuts land on the words.** ElevenLabs returns a timestamp for every word, so each shot changes just as its line starts.
 - **Driven by Claude Code, no Claude API key needed.** A [Claude Code](https://claude.com/claude-code) skill runs the whole
@@ -30,6 +31,9 @@ idea ─► script + fact-check ─► voiceover (ElevenLabs) ─► word timing
 - The show's own audio sits under the voice (Japanese track, −18 dB). A key line can play in the clear on the English
   track: the engine opens a gap in the voiceover so the line has room.
 - The reel ends on a frozen frame with a slow push-in and a question card, to prompt comments.
+- Optional synthesized sound effects (whoosh on each card, hit on stamps, ting on meter drops), mixed 8 dB under the
+  voice with peaks capped below it.
+- Borrow the pacing and look of a reel you like: see [Reference reels](#reference-reels).
 
 ## Requirements
 
@@ -54,7 +58,8 @@ python3 -m venv .venv
 cp .env.example .env              # API keys go here (never committed)
 ```
 
-Put your episodes in `media/episodes/` (or point `episodes_dir` at them, see below), then build the subtitle index:
+Put your episodes in `media/episodes/` inside the project (gitignored - never commit video), or point `episodes_dir`
+at wherever they already are. Keep whole episodes: no clipping needed. Then build the subtitle index:
 
 ```bash
 .venv/bin/python tools/subs.py extract
@@ -83,6 +88,7 @@ which is gitignored. It overrides `config.json` key by key:
 | `episodes_dir`, `episode_glob` | where full episodes live and how episode *n* is named (`*S01E{ep:02d}.mkv`). Relative paths start at the project root |
 | `clips_dirs` | extra folders searched when a reel uses a clip file instead of `EPnn` |
 | `audio_tracks` | which audio stream is English and which is Japanese |
+| `look` | default look for every reel (see `reels/README.md`): zoom, card position, background blur/dim, sound effects |
 | `fonts` | card font, contact-sheet label font, colour emoji font and the size it renders at (Apple Color Emoji: 160, Noto Color Emoji: 109) |
 | `tts` | ElevenLabs model (`eleven_v3`), output format and voice settings |
 | `render` | frame size, fps, clip window position, show-audio level, loudness target |
@@ -127,7 +133,8 @@ $EDITOR reels/reel10/post.json                           # title, caption, hasht
 ```
 
 Already have a voiceover mp3, recorded yourself or made on the ElevenLabs website? Save it as `reels/reel10/voice.mp3`
-and run `tools/tts.py reels/reel10 --timing-only`. That times the phrases from the pauses, without word timings.
+next to `vo.txt` and run `tools/tts.py reels/reel10 --timing-only`. It aligns the script to the audio (sentence ends
+to pauses, words by syllables; typically within 0.1-0.3 s) - no API call.
 
 ### reel.json in short
 
@@ -163,8 +170,29 @@ Re-render only what changed: `python -m reelkit.engine reels/reel10 [text|video|
 | `tools/publish_youtube.py <reel> [--confirm]` / `--auth` | upload as a Short (dry run without `--confirm`) |
 | `tools/publish_instagram.py <reel> [--confirm]` | publish as a Reel (dry run without `--confirm`) |
 | `tools/ig_token.py` | check the Instagram token and fill in the account ID |
+| `tools/style.py <video> [--name N]` / `--url <link> --name N` | measure a reference reel's pacing; writes `analysis.json` + a one-still-per-shot sheet |
 
 `published.json` in each reel folder records the links, so a reel can't be posted twice.
+
+## Reference reels
+
+Put reels whose editing you like in `references/` (links in `references/links.md`, videos as
+`references/<name>/video.mp4`). `tools/style.py` measures shot lengths, the hook's cut count, pace across the reel and
+loudness, and makes a one-still-per-shot sheet. Claude turns that into `style.md` (what to copy) and `look.json`
+(engine settings), and a reel uses it with `"style": "<name>"`. Only the style is borrowed, never the content.
+Details: [`references/README.md`](references/README.md).
+
+## Saving credits
+
+Claude Code usage and ElevenLabs characters are the two costs. The workflow is built to keep both low:
+
+- **Subtitles before images.** Moments are found by searching the subtitles (text is cheap); contact sheets are made
+  only for the few seconds still in doubt, and each image is read once.
+- **Whole episodes, no pre-clipping.** Hand-clipping doesn't save Claude anything - the clips still have to be looked
+  at to pick the exact frames - and it costs you time. Pre-made clips still work if you have them.
+- **One voice generation per reel**, after the script is approved. Fixing a self-made mp3 needs only `--timing-only`.
+- **Render stages separately**: re-run only `text`, `video`, `audio` or `finish` after a change.
+- **Styles are analysed once** and reused as text.
 
 ## Account setup
 
@@ -220,6 +248,8 @@ tools/              subs, tts, sheet, qa, publish_youtube, publish_instagram, ig
 .claude/skills/     make-reel: the Claude Code workflow with its two approval stops
 examples/reel09/    a complete reel.json, post.json and script
 reels/              your reels, one folder each (gitignored except README.md, the format reference)
+references/         reference reels and their style profiles (gitignored except README.md)
+media/              your episodes and clips (gitignored)
 subs/               extracted subtitles (gitignored)
 config.json         defaults; config.local.json overrides (gitignored)
 ```

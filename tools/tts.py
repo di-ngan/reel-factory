@@ -88,6 +88,57 @@ def phrases(mp3, words=None):
     return out, dur
 
 
+def syllables(w):
+    w = re.sub(r"[^a-z0-9]", "", w.lower())
+    if w.isdigit():
+        return 2 * len(w)
+    n = len(re.findall(r"[aeiouy]+", w))
+    if w.endswith("e") and n > 1 and not w.endswith("le"):
+        n -= 1
+    return max(1, n)
+
+
+def estimate_words(mp3, text):
+    """No word timings (your own mp3): sentence/clause ends are matched, in order, to the clear pauses
+    (>= 0.3 s) at the closest point in the script; words in between are spread by syllables.
+    Typically within ~0.3 s; check by ear before cutting on a word."""
+    ph, _ = phrases(mp3)
+    toks = re.sub(r"\[[^\]]*\]", " ", text).split()               # drop v3 audio tags
+    if not toks or not ph:
+        return []
+    syl = [syllables(t) for t in toks]
+    total, speech = sum(syl), sum(b - a for a, b in ph)
+    cum = [sum(syl[:i]) / total for i in range(len(toks) + 1)]          # script fraction before word i
+    before, gaps = 0.0, []                                              # (speech fraction, resume time)
+    for (a0, b0), (a1, _) in zip(ph, ph[1:]):
+        before += b0 - a0
+        if a1 - b0 >= 0.3:
+            gaps.append((before / speech, a1, before))
+    bounds = [i for i in range(1, len(toks)) if re.search(r"[.,!?;:\u2026\u2014-]$", toks[i - 1])]
+    knots, last = [(0, 0.0, None)], 0                                   # (word index, speech secs, real start)
+    for fp, resume, secs in gaps:
+        cand = [i for i in bounds if i > last and abs(cum[i] - fp) < 0.2]
+        if cand:
+            i = min(cand, key=lambda i: abs(cum[i] - fp))
+            knots.append((i, secs, resume)); last = i
+    knots.append((len(toks), speech, None))
+    def at(x):                                                           # speech seconds -> real time
+        for a0, b0 in ph:
+            if x < b0 - a0:
+                return a0 + x
+            x -= b0 - a0
+        return ph[-1][1]
+    out = []
+    for (i0, s0, r0), (i1, s1, _) in zip(knots, knots[1:]):
+        span = (cum[i1] - cum[i0]) or 1
+        for i in range(i0, i1):
+            x = s0 + (s1 - s0) * (cum[i] - cum[i0]) / span
+            st = r0 if (i == i0 and r0 is not None) else at(x)
+            out.append({"w": toks[i], "start": round(st, 3),
+                        "end": round(at(s0 + (s1 - s0) * (cum[i + 1] - cum[i0]) / span), 3)})
+    return out
+
+
 def write_timing(folder, words):
     ph, dur = phrases(folder / "voice.mp3", words)
     lines = [f"duration {dur:.2f}s", "", "PHRASES (speech between pauses; cut on the start time)"]
@@ -116,7 +167,12 @@ def main():
         return
     folder = Path(a.folder)
     if a.timing_only:
-        write_timing(folder, [])
+        vo = folder / "vo.txt"
+        words = estimate_words(folder / "voice.mp3", vo.read_text()) if vo.exists() else []
+        if words:
+            (folder / "words.json").write_text(json.dumps(words, indent=1))
+            print(f"estimated {len(words)} word times from vo.txt (no API word timings - check by ear)")
+        write_timing(folder, words)
         return
     text = (folder / "vo.txt").read_text().strip()
     t = CFG["tts"]

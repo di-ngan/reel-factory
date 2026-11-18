@@ -15,6 +15,7 @@
     "output_format": "mp3_44100_128",
     "voice_settings": {"stability": 0.5, "similarity_boost": 0.75, "style": 0.0, "use_speaker_boost": true}
   },
+  "look": {},
   "render": {"fps": 30, "width": 1080, "height": 1920, "clip_y": 640, "orig_db": -18.0, "target_lufs": -14.0},
   "youtube": {"category_id": "1", "default_privacy": "private"},
   "instagram": {"graph_version": "v27.0", "host": "graph.facebook.com"}

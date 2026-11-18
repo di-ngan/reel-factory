@@ -13,7 +13,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from reelkit.common import CFG, source, duration, run
+from reelkit.common import CFG, ROOT, source, duration, run
 
 RC = CFG["render"]
 FPS, W, H = RC["fps"], RC["width"], RC["height"]
@@ -25,6 +25,13 @@ COL = {"W": (255, 255, 255), "R": (255, 52, 64), "Y": (255, 214, 64), "G": (70, 
 INK = (18, 12, 20)
 TRACK = {k: v for k, v in CFG["audio_tracks"].items()}
 NEVER = 10 ** 9
+# Style knobs. Precedence: these defaults < config.json "look" < references/<style>/look.json < reel.json "look".
+LOOK = {"zoom": 0.06,          # Ken Burns push per shot (alternating in/out)
+        "freeze_zoom": 0.08,   # push on the final hold
+        "card_y": 370,         # centre of the text cards (y px); 50 px higher while a meter shows
+        "bg_blur": 28, "bg_dim": -0.12,   # blurred background fill
+        "sfx": False,          # auto SFX: whoosh on each new card, hit on stamps, ting on meter drops
+        "sfx_db": -8}          # SFX level vs the voice (gated RMS); peaks capped below the voice peak
 
 
 class Reel:
@@ -66,6 +73,13 @@ class Reel:
         hud = j.get("hud")
         self.hud = hud
         self.hud_on, self.hud_shrink, self.hud_off = (self.cf(hud["on"]), self.cf(hud["shrink"]), self.cf(hud["off"])) if hud else (NEVER,) * 3
+        self.look = {**LOOK, **CFG.get("look", {})}
+        if j.get("style"):
+            lf = ROOT / "references" / j["style"] / "look.json"
+            if not lf.exists():
+                raise SystemExit(f"style '{j['style']}' has no {lf} - run tools/style.py first")
+            self.look.update(json.loads(lf.read_text()))
+        self.look.update(j.get("look", {}))
         self.work = self.dir / "work"
         self.work.mkdir(exist_ok=True)
 
@@ -105,7 +119,7 @@ class Reel:
             im = src.resize((max(1, int(src.width * sc)), max(1, int(src.height * sc))), Image.BICUBIC)
             if a < 1:
                 im.putalpha(im.getchannel("A").point(lambda v: int(v * a)))
-            cy = 320 if self.bar_on <= fr < self.bar_off else 370
+            cy = self.look["card_y"] - (50 if self.bar_on <= fr < self.bar_off else 0)
             layer.alpha_composite(im, ((W - im.width) // 2, cy - im.height // 2))
             if self.ar_on <= fr < self.ar_off:
                 self.draw_arrow(layer, fr)
@@ -221,7 +235,8 @@ class Reel:
             n = b - a
             d = n / FPS * sp
             ins += ["-ss", f"{st:.3f}", "-t", f"{d + 0.6:.3f}", "-i", self.srcs[k]]
-            z = f"1.0+0.06*on/{n}" if i % 2 == 0 else f"1.06-0.06*on/{n}"
+            zm = self.look["zoom"]
+            z = f"1.0+{zm}*on/{n}" if i % 2 == 0 else f"{1 + zm}-{zm}*on/{n}"
             parts.append(f"[{i}:v]trim=duration={d:.4f},setpts=(PTS-STARTPTS)/{sp:.5f},"
                          f"fps={FPS},crop=720:480,scale={VW*2}:{VH*2},setsar=1,tpad=stop_mode=clone:stop_duration=0.2,"
                          f"trim=end_frame={n},zoompan=z='{z}':d=1:x='iw/2-iw/zoom/2':y='ih/2-ih/zoom/2':s={VW}x{VH}:fps={FPS}[v{i}]")
@@ -232,10 +247,10 @@ class Reel:
         ins += ["-ss", f"{s0:.3f}", "-t", f"{s1 - s0:.3f}", "-i", self.srcs[k]]
         parts.append(f"[{j}:v]setpts=PTS-STARTPTS,fps={FPS},crop=720:480,scale={VW*2}:{VH*2},setsar=1,"
                      f"tpad=stop_mode=clone:stop_duration=10,trim=end_frame={n},"
-                     f"zoompan=z='1+0.08*on/{n}':d=1:x='iw/2-iw/zoom/2':y='ih/2-ih/zoom/2':s={VW}x{VH}:fps={FPS}[vf]")
+                     f"zoompan=z='1+{self.look["freeze_zoom"]}*on/{n}':d=1:x='iw/2-iw/zoom/2':y='ih/2-ih/zoom/2':s={VW}x{VH}:fps={FPS}[vf]")
         vlab.append("[vf]")
         parts.append(f"{''.join(vlab)}concat=n={len(vlab)}:v=1:a=0,split[m][bgsrc]")
-        parts.append(f"[bgsrc]scale=-2:{H},crop={W}:{H},gblur=sigma=28,eq=brightness=-0.12:saturation=0.85[bg]")
+        parts.append(f"[bgsrc]scale=-2:{H},crop={W}:{H},gblur=sigma={self.look["bg_blur"]},eq=brightness={self.look["bg_dim"]}:saturation=0.85[bg]")
         parts.append(f"[bg][m]overlay=0:{VY}[comp]")
         parts.append(f"[comp][{j+1}:v]overlay=0:0:format=auto,format=yuv420p[out]")
         run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *ins,
@@ -297,7 +312,31 @@ class Reel:
             m = music(n, sr, self.T(mu["from"]))
             m *= gated_rms(v) / gated_rms(m) * 10 ** (mu.get("db", -13) / 20)
             mix += m
+        fx = self.sfx(n, sr)
+        if fx is not None:
+            fx *= gated_rms(v) / gated_rms(fx) * 10 ** (self.look["sfx_db"] / 20)
+            cap = 0.7 * np.abs(v).max()                    # no hit pokes out over the narration
+            if np.abs(fx).max() > cap:
+                fx *= cap / np.abs(fx).max()
+            mix += fx
         mix.astype("<f4").tofile(self.work / "mix.f32")
+
+    def sfx(self, n, sr):
+        """Synth SFX track: look.sfx adds the automatic cues; reel.json "sfx": [[voice time, kind], ...] adds more."""
+        ev = [(self.cf(t), kind) for t, kind in self.j.get("sfx", [])]
+        if self.look["sfx"]:
+            ev += [(st, "whoosh") for st, _ in self.cards[1:]]
+            ev += [(f, "hit") for f in self.stamps]
+            ev += [(f, "ting") for f, _, _ in self.bar_drops]
+        if not ev:
+            return None
+        out = np.zeros((n, 2))
+        for f, kind in ev:
+            snd = SFX[kind](sr)
+            i = max(0, int(f / FPS * sr) - (int(0.12 * sr) if kind == "whoosh" else 0))   # whoosh peaks on the cut
+            e = min(n, i + len(snd))
+            out[i:e] += snd[:e - i, None]
+        return out
 
     def finish(self):
         j = subprocess.run(["ffmpeg", "-hide_banner", "-f", "f32le", "-ar", "48000", "-ac", "2", "-i", self.work / "mix.f32",
@@ -382,6 +421,32 @@ def stamp_on(layer, k, word="FAKE"):
     im.putalpha(im.getchannel("A").point(lambda v: int(v * a)))
     dx = [0, 0, 0, 0, 9, -7, 4, -2][k] if k < 8 else 0
     layer.alpha_composite(im, (W // 2 - im.width // 2 + 250 + dx, 745 - im.height // 2))
+
+
+def _whoosh(sr, d=0.38):
+    t = np.arange(int(d * sr)) / sr
+    noise = np.random.default_rng(3).standard_normal(len(t))
+    env = np.sin(np.pi * t / d) ** 2 * np.exp(-2 * t)
+    a = np.exp(-2 * np.pi * (300 + 2600 * np.sin(np.pi * t / d)) / sr)   # sweeping low-pass
+    y, out = 0.0, np.empty_like(noise)
+    for i, x in enumerate(noise):
+        y = (1 - a[i]) * x + a[i] * y; out[i] = y
+    return out * env
+
+
+def _hit(sr, d=0.45):
+    t = np.arange(int(d * sr)) / sr
+    body = np.sin(2 * np.pi * (48 + 60 * np.exp(-t * 30)) * t) * np.exp(-t * 9)
+    click = np.random.default_rng(5).standard_normal(len(t)) * np.exp(-t * 120) * 0.4
+    return body + click
+
+
+def _ting(sr, d=0.7):
+    t = np.arange(int(d * sr)) / sr
+    return (np.sin(2 * np.pi * 1760 * t) + 0.5 * np.sin(2 * np.pi * 2640 * t)) * np.exp(-t * 7) * np.minimum(1, t / 0.003)
+
+
+SFX = {"whoosh": _whoosh, "hit": _hit, "ting": _ting}
 
 
 def gated_rms(x):
