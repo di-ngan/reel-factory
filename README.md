@@ -237,6 +237,10 @@ config.json         defaults; config.local.json overrides (gitignored)
 | Phrases split in the middle of words | breathy voices dip below the silence threshold; with word timings from `tts.py` this is handled |
 | Emoji missing or huge on Linux | set `fonts.emoji` to Noto Color Emoji and `emoji_size` to 109 |
 
+## License
+
+[MIT](LICENSE). The license covers the code only, not any media you use it with.
+
 ## Legal
 
 This repository contains code only. You are responsible for having the right to use any footage, audio and voices
