@@ -5,13 +5,17 @@ then upload to **YouTube Shorts** and **Instagram Reels**.
 
 ## Reel types
 
-You pick a type when you start a reel or a series, and can switch any time:
+Each style of reel is a **kit** in [`reel_kits/`](reel_kits/). You pick a type when you start a reel or a series, and
+can switch any time. The kits included:
 
 | Type | What you get | Needs |
 |---|---|---|
 | **Commentary** | narrated breakdown over show footage: text cards, meters, stamps, the show's audio under the voice | your episode files |
 | **Animated story** | an original cartoon short: 2D bean-head characters in an inked, painted 3D world, gliding cameras, synthesized music and SFX | nothing |
 | **Animated retelling** | the cartoon style applied to a series: a scene, rule or debate acted out by an original toon cast | nothing (subtitles help with facts) |
+
+Want another style (slideshow, kinetic text, split-screen reactions...)? A kit is one folder with a `kit.json`, a
+guide and a renderer - see [Adding a kit](#adding-a-kit). The voice, QA and posting steps are shared by every kit.
 
 It was built for Death Note, but nothing is tied to one show: commentary works with any series you have as video files
 with subtitles, and the animated types need no footage at all.
@@ -68,7 +72,7 @@ levels under the voice.
 | Python packages | `numpy`, `pillow`, `certifi` (everything else is the standard library) |
 | Fonts | a heavy sans font for the cards and a colour emoji font. The defaults are the macOS system fonts; on Linux/Windows set your own in `config.local.json` (see [Configuration](#configuration)) |
 | Episodes (commentary) | your own video files, ideally with an English audio track, a Japanese audio track and English subtitles |
-| Node.js 22.6+ (animated) | for the cartoon renderer; `reelkit.cartoon setup` installs Playwright's Chromium and fetches three.js once |
+| Node.js 22.6+ (animated) | for the cartoon renderer; `reel.py <reel> setup` installs Playwright's Chromium and fetches three.js once |
 | Accounts (optional) | ElevenLabs (voice), Google Cloud (YouTube), Meta developer app (Instagram) |
 
 No footage, subtitles or voices are included in this repository.
@@ -83,11 +87,11 @@ python3 -m venv .venv
 cp .env.example .env              # API keys go here (never committed)
 ```
 
-Put your episodes in `media/episodes/` inside the project (gitignored - never commit video), or point `episodes_dir`
+Put your episodes in `workspace/media/episodes/` inside the project (gitignored - never commit video), or point `episodes_dir`
 at wherever they already are. Keep whole episodes: no clipping needed. Then build the subtitle index:
 
 ```bash
-.venv/bin/python tools/subs.py extract
+.venv/bin/python research/subs.py extract
 ```
 
 ## Configuration
@@ -110,10 +114,11 @@ which is gitignored. It overrides `config.json` key by key:
 
 | Key | What it does |
 |---|---|
+| `workspace` | folder for your own files (reels, media, references, subtitles, idea list); default `workspace` |
 | `episodes_dir`, `episode_glob` | where full episodes live and how episode *n* is named (`*S01E{ep:02d}.mkv`). Relative paths start at the project root |
 | `clips_dirs` | extra folders searched when a reel uses a clip file instead of `EPnn` |
 | `audio_tracks` | which audio stream is English and which is Japanese |
-| `look` | default look for every reel (see `reels/README.md`): zoom, card position, background blur/dim, sound effects |
+| `look` | default look for every commentary reel (see [`reel_kits/commentary/README.md`](reel_kits/commentary/README.md)): zoom, card position, background blur/dim, sound effects |
 | `fonts` | card font, contact-sheet label font, colour emoji font and the size it renders at (Apple Color Emoji: 160, Noto Color Emoji: 109) |
 | `tts` | ElevenLabs model (`eleven_v3`), output format and voice settings |
 | `render` | frame size, fps, clip window position, show-audio level, loudness target |
@@ -128,49 +133,53 @@ Open the project in Claude Code (the CLI, desktop app or IDE extension) and say 
 a script or a voiceover, or say *"start a new series about ..."*. The [`make-reel`](.claude/skills/make-reel/SKILL.md)
 skill then:
 
-1. **Asks the reel type** the first time (and once per new series), and remembers it in `preferences.json`
-   (template: [`preferences.example.json`](preferences.example.json)). Say *"switch this series to animated"* or
+1. **Asks the reel type** the first time (and once per new series), and remembers it in `workspace/preferences.json`
+   (template: [`preferences.example.json`](workspace/preferences.example.json)). Say *"switch this series to animated"* or
    *"turn sound effects on"* any time.
-2. **Takes the idea** from you, or the first unchecked item in `content_bank.md` (copy
-   [`content_bank.example.md`](content_bank.example.md) to start your own); it can also pitch 10 new ones.
+2. **Takes the idea** from you, or the first unchecked item in `workspace/content_bank.md` (copy
+   [`content_bank.example.md`](workspace/content_bank.example.md) to start your own); it can also pitch 10 new ones.
 3. **Writes a brief and the voiceover**, fact-checked against the subtitles (or the web for real stories).
    Approval stop 1: nothing costs credits or long renders before you approve.
-4. **Generates the voice** (or times your own mp3) and builds the reel with the type's engine:
+4. **Generates the voice** (or times your own mp3) and builds the reel with the type's kit:
    - *commentary*: shots from the episodes, `reel.json`, a ~1 minute render;
    - *animated*: shot plan, world, cast, cameras and sound cues, a stills sheet for you to check, then the full render.
 5. **Runs QA** and fixes what it finds.
 6. **Writes the title, caption and hashtags**. Approval stop 2: you approve them before anything is posted, then it
    uploads to YouTube and publishes to Instagram.
 
-Type guides: [commentary](.claude/skills/make-reel/types/commentary.md), [animated](.claude/skills/make-reel/types/cartoon.md).
+Kit guides: [commentary](reel_kits/commentary/GUIDE.md), [animated](reel_kits/cartoon/GUIDE.md).
 
 ### By hand (commentary)
 
+Reels are folders in `workspace/reels/`; every command takes the short name.
+
 ```bash
-mkdir -p reels/reel10 && $EDITOR reels/reel10/vo.txt     # the spoken script (v3 tags like [serious] allowed)
+.venv/bin/python reel.py new reel10 commentary           # workspace/reels/reel10/reel.json
+$EDITOR workspace/reels/reel10/vo.txt                    # the spoken script (v3 tags like [serious] allowed)
 
-.venv/bin/python tools/tts.py reels/reel10               # -> voice.mp3, words.json, timing.txt
-.venv/bin/python tools/sheet.py EP10 240 55              # contact sheet: EP10 from 4:00, 55 s, labelled in seconds
-.venv/bin/python tools/subs.py show 10 4:00 5:00         # exact line times
+.venv/bin/python voice/tts.py reel10                     # -> voice.mp3, words.json, timing.txt
+.venv/bin/python research/sheet.py EP10 240 55           # contact sheet: EP10 from 4:00, 55 s, labelled in seconds
+.venv/bin/python research/subs.py show 10 4:00 5:00      # exact line times
 
-$EDITOR reels/reel10/reel.json                           # the edit (see below)
-.venv/bin/python -m reelkit.engine reels/reel10          # render -> reels/reel10/out/<title>.mp4
-.venv/bin/python tools/qa.py reels/reel10                # checks + work/qa.jpg stills sheet
+$EDITOR workspace/reels/reel10/reel.json                 # the edit (see below)
+.venv/bin/python reel.py reel10                          # render -> workspace/reels/reel10/out/<title>.mp4
+.venv/bin/python qa/qa.py reel10                         # checks + work/qa.jpg stills sheet
 
-$EDITOR reels/reel10/post.json                           # title, caption, hashtags
-.venv/bin/python tools/publish_youtube.py reels/reel10           # dry run
-.venv/bin/python tools/publish_youtube.py reels/reel10 --confirm
-.venv/bin/python tools/publish_instagram.py reels/reel10 --confirm
+$EDITOR workspace/reels/reel10/post.json                 # title, caption, hashtags
+.venv/bin/python publish/youtube.py reel10               # dry run
+.venv/bin/python publish/youtube.py reel10 --confirm
+.venv/bin/python publish/instagram.py reel10 --confirm
 ```
 
-Already have a voiceover mp3, recorded yourself or made on the ElevenLabs website? Save it as `reels/reel10/voice.mp3`
-next to `vo.txt` and run `tools/tts.py reels/reel10 --timing-only`. It aligns the script to the audio (sentence ends
+Already have a voiceover mp3, recorded yourself or made on the ElevenLabs website? Save it as `voice.mp3` in the reel
+folder next to `vo.txt` and run `voice/tts.py reel10 --timing-only`. It aligns the script to the audio (sentence ends
 to pauses, words by syllables; typically within 0.1-0.3 s) - no API call.
 
 ### reel.json in short
 
 ```jsonc
 {
+  "kit": "commentary",
   "title": "Reel10-My-Title",
   "voice": "voice.mp3",
   "sources": {"e": "EP10"},                 // "EPnn" = full episode, or a clip file name
@@ -185,49 +194,61 @@ to pauses, words by syllables; typically within 0.1-0.3 s) - no API call.
 
 Cut times are on the voiceover's timeline: copy them from `timing.txt`, and the engine lands each cut 2 frames early.
 The full format (gaps for show lines, slow motion, counters, meters, stamps, arrows, HUD, music) is in
-[`reels/README.md`](reels/README.md). A complete real reel is in [`examples/reel09`](examples/reel09).
+[`reel_kits/commentary/README.md`](reel_kits/commentary/README.md). A complete real reel is in
+[`reel_kits/commentary/example/reel09`](reel_kits/commentary/example/reel09).
 
-Re-render only what changed: `python -m reelkit.engine reels/reel10 [text|video|audio|finish]`.
+Re-render only what changed: `reel.py reel10 text|video|audio|finish`.
 
 ### By hand (animated)
 
 ```bash
-mkdir -p reels/reel11 && echo '{"type": "cartoon", "title": "My-Short", "voice": "voice.mp3"}' > reels/reel11/reel.json
-.venv/bin/python tools/tts.py reels/reel11                # voice + word timings from vo.txt
-.venv/bin/python -m reelkit.cartoon reels/reel11 setup    # engine + example story into reels/reel11/web
-$EDITOR reels/reel11/web/story.js reels/reel11/audio.py   # shot plan, world, cast, cameras; music + SFX cues
-.venv/bin/python -m reelkit.cartoon reels/reel11 stills 0,60,120,240   # look check -> work/stills.jpg
-.venv/bin/python -m reelkit.cartoon reels/reel11 render   # all frames (resumes if interrupted)
-.venv/bin/python -m reelkit.cartoon reels/reel11 audio    # stems -> level-locked mix
-.venv/bin/python -m reelkit.cartoon reels/reel11 finish   # -> out/My-Short.mp4
-.venv/bin/python tools/qa.py reels/reel11
+.venv/bin/python reel.py new reel11 story                # or: retelling
+.venv/bin/python voice/tts.py reel11                     # voice + word timings from vo.txt
+.venv/bin/python reel.py reel11 setup                    # engine + example story into the reel's web/
+$EDITOR workspace/reels/reel11/web/story.js workspace/reels/reel11/audio.py   # shots, world, cast, cameras; sound cues
+.venv/bin/python reel.py reel11 stills 0,60,120,240      # look check -> work/stills.jpg
+.venv/bin/python reel.py reel11 render                   # all frames (resumes if interrupted)
+.venv/bin/python reel.py reel11 audio                    # stems -> level-locked mix
+.venv/bin/python reel.py reel11 finish                   # -> out/<title>.mp4
+.venv/bin/python qa/qa.py reel11
 ```
 
-The worked example is [`kits/cartoon/example/soldier`](kits/cartoon/example/soldier) ("The Soldier Who Never Left").
+The worked example is [`reel_kits/cartoon/example/soldier`](reel_kits/cartoon/example/soldier) ("The Soldier Who Never Left").
 
-## Tools
+## Commands
 
 | Command | Purpose |
 |---|---|
-| `tools/subs.py extract` / `search "<regex>" [--ep N]` / `show <ep> <m:ss> <m:ss>` | subtitle index for fact-checking and finding lines |
-| `tools/tts.py <reel> [--voice ID] [--timing-only]` / `--list-voices` | ElevenLabs voiceover with word and phrase timings |
-| `tools/sheet.py <src> <start s> <dur s> [--fps N] [--out F]` | labelled contact sheet for picking shots |
-| `python -m reelkit.engine <reel> [stage]` | render a reel from `reel.json` |
-| `tools/qa.py <reel>` | duration, loudness, peak, frozen and black frames; stills sheet; exits 1 on failure |
-| `tools/publish_youtube.py <reel> [--confirm]` / `--auth` | upload as a Short (dry run without `--confirm`) |
-| `tools/publish_instagram.py <reel> [--confirm]` | publish as a Reel (dry run without `--confirm`) |
-| `tools/ig_token.py` | check the Instagram token and fill in the account ID |
-| `tools/style.py <video> [--name N]` / `--url <link> --name N` | measure a reference reel's pacing; writes `analysis.json` + a one-still-per-shot sheet |
+| `reel.py kits` | list installed kits, the reel types they make and what they need |
+| `reel.py new <reel> <type>` | new reel folder in `workspace/reels/` set up for that type's kit |
+| `reel.py <reel> [stage ...]` | render with the reel's kit (stages differ per kit) |
+| `voice/tts.py <reel> [--voice ID] [--timing-only]` / `--list-voices` | ElevenLabs voiceover with word and phrase timings |
+| `research/subs.py extract` / `search "<regex>" [--ep N]` / `show <ep> <m:ss> <m:ss>` | subtitle index for fact-checking and finding lines |
+| `research/sheet.py <src> <start s> <dur s> [--fps N] [--out F]` | labelled contact sheet for picking shots |
+| `research/style.py <name or video> [--name N]` / `--url <link> --name N` | measure a reference reel's pacing; writes `analysis.json` + a one-still-per-shot sheet |
+| `qa/qa.py <reel>` | duration, loudness, peak, frozen and black frames; stills sheet; exits 1 on failure |
+| `auth/youtube.py` | sign in to YouTube once (the uploader also does this the first time) |
+| `auth/instagram.py` | check the Instagram token and fill in the account ID |
+| `publish/youtube.py <reel> [--confirm]` | upload as a Short (dry run without `--confirm`) |
+| `publish/instagram.py <reel> [--confirm]` | publish as a Reel (dry run without `--confirm`) |
 
 `published.json` in each reel folder records the links, so a reel can't be posted twice.
 
+## Adding a kit
+
+Everything for a new style goes in one folder, `reel_kits/<name>/`: a `kit.json` (its reel types and needs), a
+`GUIDE.md` (how Claude makes it), a `README.md`, the renderer and an example. The renderer's only job is
+*reel folder in, `out/<title>.mp4` out* - the voice, QA and posting are shared. `reel.py kits` and the make-reel skill
+pick the new types up on their own. The full contract is in [`reel_kits/README.md`](reel_kits/README.md); with Claude
+Code you can just describe the style and ask for a new kit.
+
 ## Reference reels
 
-Put reels whose editing you like in `references/` (links in `references/links.md`, videos as
-`references/<name>/video.mp4`). `tools/style.py` measures shot lengths, the hook's cut count, pace across the reel and
+Put reels whose editing you like in `workspace/references/` (links in
+[`links.md`](workspace/references/links.md), videos as `workspace/references/<name>/video.mp4`). `research/style.py` measures shot lengths, the hook's cut count, pace across the reel and
 loudness, and makes a one-still-per-shot sheet. Claude turns that into `style.md` (what to copy) and `look.json`
 (engine settings), and a reel uses it with `"style": "<name>"`. Only the style is borrowed, never the content.
-Details: [`references/README.md`](references/README.md).
+Details: [`workspace/references/README.md`](workspace/references/README.md).
 
 ## Saving credits
 
@@ -249,7 +270,7 @@ All keys and tokens live in `.env` and `secrets/`, which are both gitignored. Th
 
 1. Create an API key with **Text to Speech** access, plus **Voices: read** if you want `--list-voices`.
    Put it in `.env` as `ELEVENLABS_API_KEY`.
-2. Put your voice's ID in `ELEVENLABS_VOICE_ID`. You can find it in the voice's menu on the website, or with `tools/tts.py --list-voices`.
+2. Put your voice's ID in `ELEVENLABS_VOICE_ID`. You can find it in the voice's menu on the website, or with `voice/tts.py --list-voices`.
 
 > On the free plan, voices from the **Voice Library** are blocked through the API (`402 paid_plan_required`).
 > Use one of ElevenLabs' built-in default voices, a voice you created yourself, or a paid plan. Or make the mp3 on
@@ -261,7 +282,7 @@ All keys and tokens live in `.env` and `secrets/`, which are both gitignored. Th
 2. Set up the **OAuth consent screen** (External). Add your Google account as a **test user**, then **Publish app**:
    in Testing mode the sign-in expires every 7 days.
 3. Create an OAuth client of type **Desktop app**. Download the JSON to `secrets/youtube_client.json`.
-4. Sign in once with `tools/publish_youtube.py --auth`. It opens the browser. On the "unverified app" warning,
+4. Sign in once with `auth/youtube.py`. It opens the browser. On the "unverified app" warning,
    choose *Advanced → Go to …*. The token is saved to `secrets/youtube_token.json`.
 
 > Until Google audits your API project, **every upload made through the API is private**. Switch it to Public (or schedule it)
@@ -279,7 +300,7 @@ most reliable token for automation comes from a **system user** in a Meta busine
    `instagram_content_publish` (`pages_show_list` and `pages_read_engagement` let the helper find the account by itself).
 4. Put the token in `.env` as `INSTAGRAM_ACCESS_TOKEN`. If the Page isn't assigned, also paste the Instagram account ID
    from **Accounts → Instagram accounts** as `INSTAGRAM_USER_ID`.
-5. Run `tools/ig_token.py`. It confirms the account and saves its ID.
+5. Run `auth/instagram.py`. It confirms the account and saves its ID.
 
 An app-dashboard token from *Instagram API → API setup with Unified login → Generate access tokens* also works:
 set `"host": "graph.instagram.com"` under `instagram` in your config. Those tokens last 60 days and are renewed every
@@ -290,17 +311,26 @@ time you publish.
 ## Project layout
 
 ```
-reelkit/            engine.py (commentary renderer), cartoon.py (animated stages), common.py (config, .env, episodes)
-kits/cartoon/       3D toon engine (three.js), cast library, sound synths, render.mjs, the Soldier example
-tools/              subs, tts, sheet, qa, publish_youtube, publish_instagram, ig_token
-.claude/skills/     make-reel: the Claude Code workflow (router + one guide per reel type)
-examples/reel09/    a complete reel.json, post.json and script
-reels/              your reels, one folder each (gitignored except README.md, the format reference)
-references/         reference reels and their style profiles (gitignored except README.md)
-media/              your episodes and clips (gitignored)
-subs/               extracted subtitles (gitignored)
+reel.py             one entry point: list kits, start a reel, render it with its kit
+reel_kits/          one folder per reel style - add a kit here (README.md: the kit contract)
+  commentary/       commentary over show footage: engine.py, GUIDE.md, README.md (reel.json format), example/reel09
+  cartoon/          animated story + retelling: build.py, three.js toon engine, cast, sound synths, example/soldier
+core/               shared code: config, .env, paths, reel and footage lookup, kit discovery
+voice/              tts.py - ElevenLabs voice and word timings
+research/           subs.py (subtitles), sheet.py (contact sheets), style.py (reference reels)
+qa/                 qa.py - checks a finished reel
+auth/               youtube.py (sign-in), instagram.py (token check)
+publish/            youtube.py, instagram.py - posting
+.claude/skills/     make-reel: the Claude Code workflow (it hands over to each kit's GUIDE.md)
+workspace/          your own files (gitignored except the READMEs and templates):
+  reels/            one folder per reel (README.md: what's in one, post.json)
+  media/            episodes and clips
+  references/       reference reels and their style profiles (links.md: your list)
+  subs/             extracted subtitles
+  content_bank.md   your idea list (template content_bank.example.md)
+  preferences.json  reel type per series, voice, SFX, style (template preferences.example.json)
 config.json         defaults; config.local.json overrides (gitignored)
-preferences.json    your reel type per series, voice, SFX, style (gitignored; template preferences.example.json)
+.env, secrets/      keys and tokens (gitignored)
 ```
 
 ## Troubleshooting
@@ -314,16 +344,16 @@ preferences.json    your reel type per series, voice, SFX, style (gitignored; te
 | YouTube video is private | expected until the API project is audited |
 | Instagram `ProcessingFailedError` | Instagram's upload assembly is flaky; the publisher retries with a fresh container automatically |
 | Phrases split in the middle of words | breathy voices dip below the silence threshold; with word timings from `tts.py` this is handled |
-| Cartoon render: `Executable doesn't exist` | run `.venv/bin/python -m reelkit.cartoon reels/<id> setup` (installs Playwright's Chromium) |
+| Cartoon render: `Executable doesn't exist` | run `.venv/bin/python reel.py <reel> setup` (installs Playwright's Chromium) |
 | Emoji missing or huge on Linux | set `fonts.emoji` to Noto Color Emoji and `emoji_size` to 109 |
 
 ## License
 
 [MIT](LICENSE). The license covers the code only, not any media you use it with.
 
-Third party: the cartoon cast library `kits/cartoon/vendor/toon.ts` is adapted from
+Third party: the cartoon cast library `reel_kits/cartoon/vendor/toon.ts` is adapted from
 [mromidev/claude-animated-shorts](https://github.com/mromidev/claude-animated-shorts) (MIT, see
-[its license](kits/cartoon/vendor/LICENSE-claude-animated-shorts)); [three.js](https://threejs.org) (MIT) and
+[its license](reel_kits/cartoon/vendor/LICENSE-claude-animated-shorts)); [three.js](https://threejs.org) (MIT) and
 Playwright (Apache-2.0) are downloaded at setup, not bundled.
 
 ## Legal

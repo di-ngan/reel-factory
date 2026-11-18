@@ -1,36 +1,30 @@
+# secrets and local setup
 .env
 secrets/
+config.local.json
 .venv/
 __pycache__/
-
-# reels are local work; only the format guide is tracked
-reels/*
-!reels/README.md
 .DS_Store
 
-# subtitles are extracted locally (tools/subs.py extract)
-subs/
+# workspace = your own work; only the guides and templates are tracked
+workspace/reels/*
+!workspace/reels/README.md
+workspace/subs/
+workspace/content_bank.md
+workspace/preferences.json
+workspace/media/*
+!workspace/media/README.md
+!workspace/media/episodes/
+workspace/media/episodes/*
+!workspace/media/episodes/.gitkeep
+!workspace/media/clips/
+workspace/media/clips/*
+!workspace/media/clips/.gitkeep
+workspace/references/*
+!workspace/references/README.md
+!workspace/references/links.md
 
-# your own settings and idea list
-config.local.json
-content_bank.md
-media/*
-!media/README.md
-!media/episodes/
-media/episodes/*
-!media/episodes/.gitkeep
-!media/clips/
-media/clips/*
-!media/clips/.gitkeep
-
-# reference reels are personal; only the guide is tracked
-references/*
-!references/README.md
-!references/links.md
-
-# cartoon kit downloads (fetched by reelkit.cartoon setup)
-kits/cartoon/node_modules/
-kits/cartoon/lib/
-kits/cartoon/package-lock.json
-reels/*/frames/
-preferences.json
+# downloads a kit fetches during setup (any kit)
+reel_kits/*/node_modules/
+reel_kits/*/lib/
+reel_kits/*/package-lock.json

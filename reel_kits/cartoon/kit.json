@@ -1,0 +1,15 @@
+{
+  "name": "cartoon",
+  "title": "Animated shorts (3D toon world, 2D cartoon cast, synthesized music)",
+  "types": {
+    "story": "original animated short: 3D toon world, cartoon cast, music + SFX; no footage needed",
+    "retelling": "animated short inspired by a series: its scenes, rules or debates acted by an original toon cast"
+  },
+  "aliases": ["cartoon"],
+  "needs": ["Node.js 22.6+", "npm (setup fetches three.js and Playwright Chromium once)", "ffmpeg"],
+  "entry": "build",
+  "stages": ["setup", "stills <frames>", "render", "audio", "finish"],
+  "guide": "GUIDE.md",
+  "qa": "full",
+  "example": "example/soldier"
+}

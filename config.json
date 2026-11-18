@@ -1,7 +1,8 @@
 {
-  "episodes_dir": "media/episodes",
+  "workspace": "workspace",
+  "episodes_dir": "workspace/media/episodes",
   "episode_glob": "*S01E{ep:02d}.mkv",
-  "clips_dirs": ["media/clips"],
+  "clips_dirs": ["workspace/media/clips"],
   "audio_tracks": {"en": 0, "ja": 1},
   "subtitle_stream": 0,
   "fonts": {

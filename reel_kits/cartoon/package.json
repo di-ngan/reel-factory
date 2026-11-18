@@ -1,0 +1,7 @@
+{
+  "name": "reel-factory-cartoon-kit",
+  "private": true,
+  "type": "module",
+  "description": "Headless renderer for cartoon reels (build.py)",
+  "dependencies": { "playwright": "^1.65.0" }
+}

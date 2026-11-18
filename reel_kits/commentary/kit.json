@@ -1,0 +1,13 @@
+{
+  "name": "commentary",
+  "title": "Commentary over show footage",
+  "types": {
+    "commentary": "narrated breakdown over show footage: text cards, graphics (meters, stamps, counters), the show's own lines in the clear"
+  },
+  "needs": ["episodes or clips in workspace/media (or a folder set in config.local.json)", "ffmpeg"],
+  "entry": "engine",
+  "stages": ["text", "video", "audio", "finish"],
+  "guide": "GUIDE.md",
+  "qa": "clip",
+  "example": "example/reel09"
+}
