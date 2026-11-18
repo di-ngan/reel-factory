@@ -10,3 +10,8 @@ reels/*
 
 # subtitles are extracted locally (tools/subs.py extract)
 subs/
+
+# your own settings and idea list
+config.local.json
+content_bank.md
+media/

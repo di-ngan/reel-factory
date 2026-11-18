@@ -9,6 +9,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from reelkit.common import CFG, duration
 
+if len(sys.argv) != 2 or sys.argv[1] in ("-h", "--help"):
+    raise SystemExit(__doc__)
 folder = Path(sys.argv[1])
 mp4 = sorted((folder / "out").glob("*.mp4"))[-1]
 work = folder / "work"; work.mkdir(exist_ok=True)

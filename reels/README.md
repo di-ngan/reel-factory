@@ -1,3 +1,6 @@
+Each reel lives in its own folder here (`reels/reel10/`). The folders are local work and are not committed;
+a complete example is in [`examples/reel09`](../examples/reel09).
+
 # reel.json
 
 ```jsonc

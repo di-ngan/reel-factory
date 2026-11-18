@@ -4,10 +4,12 @@
   publish_instagram.py reels/reel09              # dry run
   publish_instagram.py reels/reel09 --confirm    # uploads and publishes
 
-One-time setup (Instagram API with Instagram Login): Business/Creator account; a Meta app with the
-Instagram use case; a token from the app dashboard ("Generate access tokens") in .env as
-INSTAGRAM_ACCESS_TOKEN, then run tools/ig_token.py to fill INSTAGRAM_USER_ID. The token lasts
-60 days and is refreshed automatically each time this script publishes.
+One-time setup: Instagram Business/Creator account, a Meta app, and a token in .env as INSTAGRAM_ACCESS_TOKEN.
+Two token kinds work (config.json instagram.host): a Business settings system user token with
+instagram_basic + instagram_content_publish (graph.facebook.com, never expires), or an app-dashboard
+Instagram-login token (graph.instagram.com, 60 days, refreshed on every publish).
+Then run tools/ig_token.py to check it and fill INSTAGRAM_USER_ID.
+The upload is sent in 4 MB chunks and retried with a fresh container if Instagram's assembly step fails.
 """
 import argparse, json, subprocess, sys, time, urllib.parse, urllib.request, urllib.error
 from pathlib import Path

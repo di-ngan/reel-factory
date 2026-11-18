@@ -3,7 +3,22 @@ import glob, json, os, subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-CFG = json.loads((ROOT / "config.json").read_text())
+
+
+def _load_config():
+    """config.json, overridden key by key by config.local.json (gitignored: your own paths and fonts)."""
+    cfg = json.loads((ROOT / "config.json").read_text())
+    local = ROOT / "config.local.json"
+    if local.exists():
+        for k, v in json.loads(local.read_text()).items():
+            cfg[k] = {**cfg[k], **v} if isinstance(v, dict) and isinstance(cfg.get(k), dict) else v
+    resolve = lambda p: str(p if os.path.isabs(p) else ROOT / p)      # relative paths are from the project root
+    cfg["episodes_dir"] = resolve(cfg["episodes_dir"])
+    cfg["clips_dirs"] = [resolve(d) for d in cfg.get("clips_dirs", [])]
+    return cfg
+
+
+CFG = _load_config()
 
 
 def load_env():

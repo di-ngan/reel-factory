@@ -8,7 +8,7 @@ import argparse, glob, os, subprocess, sys, tempfile
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from reelkit.common import ROOT, source
+from reelkit.common import CFG, ROOT, source
 
 ap = argparse.ArgumentParser()
 ap.add_argument("src"); ap.add_argument("start", type=float); ap.add_argument("dur", type=float)
@@ -22,7 +22,7 @@ subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-ss", str(a.sta
 fs = sorted(glob.glob(f"{d}/*.jpg")); cols = 10
 w, h = Image.open(fs[0]).size
 S = Image.new("RGB", (cols * (w + 3), ((len(fs) + cols - 1) // cols) * (h + 3)), "black")
-f = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial Bold.ttf", 15)
+f = ImageFont.truetype(CFG["fonts"]["label"], 15)
 D = ImageDraw.Draw(S)
 for i, p in enumerate(fs):
     x, y = (i % cols) * (w + 3), (i // cols) * (h + 3)

@@ -10,7 +10,8 @@ Two hard stops need the user's yes in chat: **before generating the voice** (cos
 **before publishing** (public). Never skip them, even on a schedule - on an unattended run, stop at the gate and report.
 
 ## 1. Idea
-- If the user gave an idea/beats/clips, use that. Otherwise take the first idea in `content_bank.md` marked `[ ]`.
+- If the user gave an idea/beats/clips, use that. Otherwise take the first idea in `content_bank.md` marked `[ ]`
+  (create it from `content_bank.example.md` if missing).
 - Create `reels/reelNN/`.
 
 ## 2. Fact-check and script
@@ -35,7 +36,7 @@ Two hard stops need the user's yes in chat: **before generating the voice** (cos
   an RMS envelope of track 0.
 
 ## 5. reel.json
-Format: `reels/README.md`; a full example is `reels/reel09/reel.json`. Rules:
+Format: `reels/README.md`; a full example is `examples/reel09/reel.json`. Rules:
 - Times are in the original `voice.mp3` timeline. Every cut starts at a phrase start (the engine lands it 2 frames early).
 - Show line in the clear: add `[at, seconds]` to `gaps` inside the pause before it, and a cut with track `"en"` and +10-12 dB.
 - Cards sit above the clip - never put text over a face at a meme moment. Max ~6 words, key word in R or Y.
